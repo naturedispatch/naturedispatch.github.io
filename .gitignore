@@ -1,0 +1,7 @@
+# Nature Dispatch TMS — .gitignore
+.DS_Store
+Thumbs.db
+*.log
+node_modules/
+.env
+Dev Docs/
