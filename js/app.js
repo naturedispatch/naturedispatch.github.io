@@ -75,6 +75,16 @@ const App = (() => {
             <i class="bi bi-broadcast me-2"></i>ELD Portal <i class="bi bi-box-arrow-up-right ms-1 small" style="opacity:.5"></i>
           </a>
         </li>
+        <li class="nav-item">
+          <a class="nav-link" href="https://ua.getipass.com/web/guest/home" target="_blank" rel="noopener">
+            <i class="bi bi-credit-card me-2"></i>iPass Tolls <i class="bi bi-box-arrow-up-right ms-1 small" style="opacity:.5"></i>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="https://app.enterprise-diesel.com/" target="_blank" rel="noopener">
+            <i class="bi bi-fuel-pump me-2"></i>Enterprise Diesel <i class="bi bi-box-arrow-up-right ms-1 small" style="opacity:.5"></i>
+          </a>
+        </li>
       </ul>
       <hr>
       <div class="text-center" style="opacity:.35">
