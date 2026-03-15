@@ -95,7 +95,7 @@ const App = (() => {
       </ul>
       <hr>
       <div class="text-center" style="opacity:.35">
-        <small>&copy; 2026 Nature Dispatch TMS</small>
+        <small>&copy; ${new Date().getFullYear()} Nature Dispatch TMS</small>
       </div>
     </div>`;
   }
@@ -294,6 +294,69 @@ const App = (() => {
     return `<span class="badge ${cls}">${status || 'N/A'}</span>`;
   }
 
+  // ── Shared lookup helpers (avoid duplicating in every module) ─
+
+  /**
+   * Resolve a linked-record ID (or array of IDs) to a display name.
+   * Tries common fields: Full Name, Broker Name, Company Name, Truck Number.
+   * @param {Array} cache  – Array of Airtable records
+   * @param {string|string[]} linkedIds – Record ID or array of IDs
+   * @param {string} [preferField] – Optional preferred field name
+   * @returns {string} Display name or '—'
+   */
+  function lookupName(cache, linkedIds, preferField) {
+    if (!linkedIds) return '—';
+    const id = Array.isArray(linkedIds) ? linkedIds[0] : linkedIds;
+    const rec = cache.find(r => r.id === id);
+    if (!rec) return '—';
+    if (preferField && rec.fields[preferField]) return rec.fields[preferField];
+    return rec.fields['Full Name']
+      || rec.fields['Broker Name']
+      || rec.fields['Company Name']
+      || rec.fields['Truck Number']
+      || rec.id;
+  }
+
+  /**
+   * Populate a <select> element with records from a cache.
+   * Keeps the first <option> (placeholder) and replaces the rest.
+   * @param {string} selectId – DOM id of the <select>
+   * @param {Array} records   – Airtable records array
+   * @param {string} field    – Field name used for option labels
+   */
+  function fillSelect(selectId, records, field) {
+    const sel = document.getElementById(selectId);
+    if (!sel) return;
+    const placeholder = sel.querySelector('option');
+    sel.innerHTML = '';
+    if (placeholder) sel.appendChild(placeholder);
+    records.forEach(r => {
+      const o = document.createElement('option');
+      o.value = r.id;
+      o.textContent = r.fields[field] || r.id;
+      sel.appendChild(o);
+    });
+  }
+
+  /**
+   * Disable a button and show a spinner while an async action runs.
+   * @param {HTMLElement} btn – The button element
+   * @param {Function} asyncFn – Async function to execute
+   */
+  async function withLoading(btn, asyncFn) {
+    const original = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Saving…';
+    try {
+      await asyncFn();
+    } catch (err) {
+      showToast(err.message || 'Operation failed', 'danger');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = original;
+    }
+  }
+
   return {
     init,
     getCurrentCompany,
@@ -304,5 +367,8 @@ const App = (() => {
     formatCurrency,
     formatDate,
     statusBadge,
+    lookupName,
+    fillSelect,
+    withLoading,
   };
 })();

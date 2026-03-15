@@ -68,6 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function saveBroker() {
+  const btn = document.getElementById('saveBrokerBtn');
   const id = document.getElementById('brokerRecordId').value;
   const fields = {
     'Broker Name':   document.getElementById('brokerName').value.trim(),
@@ -75,12 +76,13 @@ async function saveBroker() {
     'Contact Email': document.getElementById('brokerEmail').value.trim(),
   };
   if (!fields['Broker Name']) { App.showToast('Broker Name required', 'warning'); return; }
-  try {
+
+  await App.withLoading(btn, async () => {
     if (id) { await Airtable.update(CONFIG.TABLES.BROKERS, id, fields); App.showToast('Updated!'); }
     else    { await Airtable.create(CONFIG.TABLES.BROKERS, fields); App.showToast('Created!'); }
     bootstrap.Modal.getInstance(document.getElementById('brokerModal')).hide();
     loadBrokersPage();
-  } catch (err) { App.showToast(err.message, 'danger'); }
+  });
 }
 
 async function deleteBroker(id) {

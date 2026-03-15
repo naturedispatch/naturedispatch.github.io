@@ -21,6 +21,18 @@ const Airtable = (() => {
       : `${CONFIG.API_URL}/${encoded}`;
   };
 
+  /** Extract a human-friendly error message from Airtable's error response */
+  async function _handleError(res, action) {
+    try {
+      const body = await res.json();
+      const msg = body?.error?.message || body?.error?.type || JSON.stringify(body);
+      throw new Error(`${action}: ${msg}`);
+    } catch (e) {
+      if (e.message.startsWith(action)) throw e;
+      throw new Error(`${action}: HTTP ${res.status}`);
+    }
+  }
+
   /**
    * Fetch ALL records (handles Airtable pagination automatically).
    * @param {string} table   – Table name from CONFIG.TABLES
@@ -39,10 +51,7 @@ const Airtable = (() => {
         headers: _headers(),
       });
 
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(`Airtable GET error: ${JSON.stringify(err)}`);
-      }
+      if (!res.ok) await _handleError(res, 'Fetch failed');
 
       const data = await res.json();
       allRecords = allRecords.concat(data.records);
@@ -57,7 +66,7 @@ const Airtable = (() => {
    */
   async function getOne(table, recordId) {
     const res = await fetch(_url(table, recordId), { headers: _headers() });
-    if (!res.ok) throw new Error(`Airtable GET error: ${res.status}`);
+    if (!res.ok) await _handleError(res, 'Fetch failed');
     return res.json();
   }
 
@@ -72,10 +81,7 @@ const Airtable = (() => {
       headers: _headers(),
       body: JSON.stringify({ fields }),
     });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(`Airtable CREATE error: ${JSON.stringify(err)}`);
-    }
+    if (!res.ok) await _handleError(res, 'Create failed');
     return res.json();
   }
 
@@ -88,10 +94,7 @@ const Airtable = (() => {
       headers: _headers(),
       body: JSON.stringify({ fields }),
     });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(`Airtable UPDATE error: ${JSON.stringify(err)}`);
-    }
+    if (!res.ok) await _handleError(res, 'Update failed');
     return res.json();
   }
 
@@ -103,7 +106,7 @@ const Airtable = (() => {
       method: 'DELETE',
       headers: _headers(),
     });
-    if (!res.ok) throw new Error(`Airtable DELETE error: ${res.status}`);
+    if (!res.ok) await _handleError(res, 'Delete failed');
     return res.json();
   }
 

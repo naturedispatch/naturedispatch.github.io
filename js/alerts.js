@@ -227,6 +227,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function saveAlert() {
+  const btn = document.getElementById('saveAlertBtn');
   const recordId = document.getElementById('alertRecordId').value;
   const fields = {
     'Title':       document.getElementById('alertTitle').value.trim(),
@@ -246,7 +247,7 @@ async function saveAlert() {
 
   if (!fields['Title']) { App.showToast('Title is required', 'warning'); return; }
 
-  try {
+  await App.withLoading(btn, async () => {
     if (recordId) {
       await Airtable.update(CONFIG.TABLES.ALERTS, recordId, fields);
       App.showToast('Alert updated!');
@@ -256,7 +257,7 @@ async function saveAlert() {
     }
     bootstrap.Modal.getInstance(document.getElementById('alertModal')).hide();
     loadAlertsPage();
-  } catch (err) { App.showToast('Save failed: ' + err.message, 'danger'); }
+  });
 }
 
 // ── DELETE Alert ────────────────────────────────────────────

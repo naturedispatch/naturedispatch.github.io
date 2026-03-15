@@ -96,8 +96,8 @@ function renderPipeline(body) {
 // ── Load Card ───────────────────────────────────────────────
 function _loadCard(rec, col) {
   const f = rec.fields;
-  const driverName = _lookupName(_drivers, f['Driver']);
-  const brokerName = _lookupName(_brokers, f['Brokers/Shippers']);
+  const driverName = App.lookupName(_drivers, f['Driver']);
+  const brokerName = App.lookupName(_brokers, f['Brokers/Shippers']);
 
   return `
   <div class="pipeline-card" draggable="true" data-id="${rec.id}"
@@ -124,13 +124,6 @@ function _loadCard(rec, col) {
 function _miniDoc(att, label) {
   const has = att && att.length > 0;
   return `<span style="font-size:.6rem;font-weight:700;padding:2px 5px;border-radius:4px;background:${has ? 'rgba(16,185,129,.1)' : 'rgba(239,68,68,.08)'};color:${has ? '#059669' : '#dc2626'}">${label}</span>`;
-}
-
-function _lookupName(cache, linkedIds) {
-  if (!linkedIds) return '';
-  const id = Array.isArray(linkedIds) ? linkedIds[0] : linkedIds;
-  const rec = cache.find(r => r.id === id);
-  return rec ? (rec.fields['Full Name'] || rec.fields['Broker Name'] || rec.fields['Company Name'] || rec.fields['Truck Number'] || '') : '';
 }
 
 // ── Drag & Drop ─────────────────────────────────────────────

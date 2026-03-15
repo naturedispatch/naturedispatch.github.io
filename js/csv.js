@@ -170,8 +170,8 @@ const CSV = (() => {
 
         App.showToast(`Successfully imported ${created} records into ${tableKey}!`, 'success');
 
-        // Refresh page if we're on a matching page
-        if (typeof loadLoadsPage === 'function' && tableKey === 'Loads') loadLoadsPage();
+        // Refresh current page after import
+        _refreshCurrentPage(tableKey);
 
       } catch (err) {
         App.showToast('Import failed: ' + err.message, 'danger');
@@ -201,6 +201,21 @@ const CSV = (() => {
   }
 
   // ── PRIVATE HELPERS ───────────────────────────────────────
+
+  /** Try to refresh the current page after a CSV import */
+  function _refreshCurrentPage(tableKey) {
+    const refreshMap = {
+      'Loads':       'loadLoadsPage',
+      'Drivers':     'loadDriversPage',
+      'Trucks':      'loadTrucksPage',
+      'Brokers':     'loadBrokersPage',
+      'Expenses':    'loadExpensesPage',
+      'Settlements': 'loadSettlementsPage',
+      'Alerts':      'loadAlertsPage',
+    };
+    const fn = refreshMap[tableKey];
+    if (fn && typeof window[fn] === 'function') window[fn]();
+  }
 
   function _download(content, filename) {
     const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });

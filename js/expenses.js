@@ -21,8 +21,8 @@ async function loadExpensesPage() {
         Airtable.getAll(CONFIG.TABLES.DRIVERS),
         Airtable.getAll(CONFIG.TABLES.TRUCKS),
       ]);
-      _fillExpSel('expDriver', _eDrivers, 'Full Name');
-      _fillExpSel('expTruck', _eTrucks, 'Truck Number');
+      App.fillSelect('expDriver', _eDrivers, 'Full Name');
+      App.fillSelect('expTruck', _eTrucks, 'Truck Number');
     }
 
     const params = { 'sort[0][field]': 'Date', 'sort[0][direction]': 'desc' };
@@ -105,29 +105,14 @@ function expRow(rec) {
     <td><span class="badge ${cls}">${rec._cat}</span></td>
     <td class="fw-semibold">${App.formatCurrency(f['Amount'])}</td>
     <td><small>${_expDetails(rec)}</small></td>
-    <td>${_lookExpName(_eTrucks, f['Truck'], 'Truck Number')}</td>
-    <td>${rec._table === 'EXPENSES' ? _lookExpName(_eDrivers, f['Driver'], 'Full Name') : '—'}</td>
+    <td>${App.lookupName(_eTrucks, f['Truck'], 'Truck Number')}</td>
+    <td>${rec._table === 'EXPENSES' ? App.lookupName(_eDrivers, f['Driver']) : '—'}</td>
     <td class="text-center">
       <button class="btn btn-sm btn-action btn-outline-danger" onclick="deleteExpense('${rec.id}','${rec._cat}')"><i class="bi bi-trash"></i></button>
     </td>
   </tr>`;
 }
 
-function _lookExpName(cache, ids, field = 'Full Name') {
-  if (!ids) return '—';
-  const id = Array.isArray(ids) ? ids[0] : ids;
-  const r = cache.find(c => c.id === id);
-  return r ? (r.fields[field] || r.id) : '—';
-}
-
-function _fillExpSel(elId, recs, field) {
-  const sel = document.getElementById(elId);
-  if (!sel) return;
-  const ph = sel.querySelector('option');
-  sel.innerHTML = '';
-  sel.appendChild(ph);
-  recs.forEach(r => { const o = document.createElement('option'); o.value = r.id; o.textContent = r.fields[field] || r.id; sel.appendChild(o); });
-}
 
 // ── Client-side tab filter ──────────────────────────────────
 function filterExpTab(btn, cat) {
@@ -173,6 +158,7 @@ function _toggleExpFields(cat) {
 }
 
 async function saveExpense() {
+  const btn = document.getElementById('saveExpenseBtn');
   const id  = document.getElementById('expRecordId').value;
   const cat = document.getElementById('expCategory').value;
 
@@ -208,12 +194,12 @@ async function saveExpense() {
 
   if (!fields.Amount) { App.showToast('Amount required', 'warning'); return; }
 
-  try {
+  await App.withLoading(btn, async () => {
     if (id) { await Airtable.update(table, id, fields); App.showToast('Updated!'); }
     else    { await Airtable.create(table, fields); App.showToast('Created!'); }
     bootstrap.Modal.getInstance(document.getElementById('expenseModal')).hide();
     loadExpensesPage();
-  } catch (err) { App.showToast(err.message, 'danger'); }
+  });
 }
 
 async function deleteExpense(id, cat) {

@@ -31,11 +31,11 @@ async function loadReportsPage() {
           <input type="date" class="form-control" id="rptTo" value="${_isoDate(today)}">
         </div>
         <div class="d-flex gap-2 flex-wrap">
-          <button class="btn btn-sm btn-outline-nd" onclick="_setRange(7)">7 Days</button>
-          <button class="btn btn-sm btn-outline-nd" onclick="_setRange(14)">14 Days</button>
-          <button class="btn btn-sm btn-outline-nd active" onclick="_setRange(30)">30 Days</button>
-          <button class="btn btn-sm btn-outline-nd" onclick="_setRange(90)">90 Days</button>
-          <button class="btn btn-sm btn-outline-nd" onclick="_setRange(365)">1 Year</button>
+          <button class="btn btn-sm btn-outline-nd" onclick="_setRange(7, event)">7 Days</button>
+          <button class="btn btn-sm btn-outline-nd" onclick="_setRange(14, event)">14 Days</button>
+          <button class="btn btn-sm btn-outline-nd active" onclick="_setRange(30, event)">30 Days</button>
+          <button class="btn btn-sm btn-outline-nd" onclick="_setRange(90, event)">90 Days</button>
+          <button class="btn btn-sm btn-outline-nd" onclick="_setRange(365, event)">1 Year</button>
         </div>
         <button class="btn btn-nd" onclick="_runReport()">
           <i class="bi bi-bar-chart me-1"></i>Generate Report
@@ -58,7 +58,7 @@ async function loadReportsPage() {
 }
 
 // ── Quick range buttons ─────────────────────────────────────
-function _setRange(days) {
+function _setRange(days, e) {
   const to = new Date();
   const from = new Date(to);
   from.setDate(from.getDate() - days);
@@ -67,7 +67,7 @@ function _setRange(days) {
 
   // Active state
   document.querySelectorAll('.btn-outline-nd.active').forEach(b => b.classList.remove('active'));
-  event.target.classList.add('active');
+  if (e && e.target) e.target.classList.add('active');
 
   _runReport();
 }

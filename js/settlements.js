@@ -15,7 +15,7 @@ async function loadSettlementsPage() {
   try {
     if (_sDrivers.length === 0) {
       _sDrivers = await Airtable.getAll(CONFIG.TABLES.DRIVERS);
-      _fillSel('settlementDriver', _sDrivers, 'Full Name');
+      App.fillSelect('settlementDriver', _sDrivers, 'Full Name');
     }
 
     const params = { 'sort[0][field]': 'Week Ending', 'sort[0][direction]': 'desc' };
@@ -54,7 +54,7 @@ function settlementRow(rec) {
   const expenses = parseFloat(f['Total Expenses']) || 0;
   const net      = parseFloat(f['Net Pay']) || (revenue - fuel - tolls - expenses);
 
-  const driverName = _lookupName(_sDrivers, f['Driver']);
+  const driverName = App.lookupName(_sDrivers, f['Driver']);
 
   return `<tr>
     <td class="fw-semibold">${App.formatDate(f['Week Ending'])}</td>
@@ -69,22 +69,6 @@ function settlementRow(rec) {
       <button class="btn btn-sm btn-action btn-outline-danger" onclick="deleteSettlement('${rec.id}')"><i class="bi bi-trash"></i></button>
     </td>
   </tr>`;
-}
-
-function _lookupName(cache, ids) {
-  if (!ids) return '—';
-  const id = Array.isArray(ids) ? ids[0] : ids;
-  const r = cache.find(c => c.id === id);
-  return r ? (r.fields['Full Name'] || r.fields['Company Name'] || r.id) : '—';
-}
-
-function _fillSel(elId, records, field) {
-  const sel = document.getElementById(elId);
-  if (!sel) return;
-  const ph = sel.querySelector('option');
-  sel.innerHTML = '';
-  sel.appendChild(ph);
-  records.forEach(r => { const o = document.createElement('option'); o.value = r.id; o.textContent = r.fields[field] || r.id; sel.appendChild(o); });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -113,6 +97,7 @@ async function openEditSettlement(id) {
 }
 
 async function saveSettlement() {
+  const btn = document.getElementById('saveSettlementBtn');
   const id = document.getElementById('settlementRecordId').value;
   const fields = {
     'Week Ending': document.getElementById('settlementWeekEnding').value || null,
@@ -122,12 +107,12 @@ async function saveSettlement() {
 
   if (!fields['Week Ending']) { App.showToast('Week Ending date is required', 'warning'); return; }
 
-  try {
+  await App.withLoading(btn, async () => {
     if (id) { await Airtable.update(CONFIG.TABLES.SETTLEMENTS, id, fields); App.showToast('Updated!'); }
     else    { await Airtable.create(CONFIG.TABLES.SETTLEMENTS, fields); App.showToast('Created!'); }
     bootstrap.Modal.getInstance(document.getElementById('settlementModal')).hide();
     loadSettlementsPage();
-  } catch (err) { App.showToast(err.message, 'danger'); }
+  });
 }
 
 async function deleteSettlement(id) {

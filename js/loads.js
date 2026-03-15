@@ -120,10 +120,10 @@ function loadRow(rec) {
   return `
   <tr>
     <td class="fw-semibold">${f['Load Number'] || '—'}</td>
-    <td>${lookupName(_companies, f['Company']) || '—'}</td>
-    <td>${lookupName(_brokers, f['Brokers/Shippers']) || '—'}</td>
-    <td>${lookupName(_drivers, f['Driver']) || '—'}</td>
-    <td>${lookupName(_trucks, f['Truck']) || '—'}</td>
+    <td>${App.lookupName(_companies, f['Company'])}</td>
+    <td>${App.lookupName(_brokers, f['Brokers/Shippers'])}</td>
+    <td>${App.lookupName(_drivers, f['Driver'])}</td>
+    <td>${App.lookupName(_trucks, f['Truck'])}</td>
     <td>${App.formatCurrency(f['Revenue'])}</td>
     <td>${etaDisplay(f['ETA'])}</td>
     <td>${docStatus(f)}</td>
@@ -148,32 +148,10 @@ function loadRow(rec) {
 
 // ── Dropdown population ─────────────────────────────────────
 function populateDropdowns() {
-  fillSelect('loadCompany', _companies, 'Company Name');
-  fillSelect('loadBroker',  _brokers,  'Broker Name');
-  fillSelect('loadDriver',  _drivers,  'Full Name');
-  fillSelect('loadTruck',   _trucks,   'Truck Number');
-}
-
-function fillSelect(id, records, nameField) {
-  const sel = document.getElementById(id);
-  if (!sel) return;
-  const first = sel.querySelector('option'); // keep placeholder
-  sel.innerHTML = '';
-  sel.appendChild(first);
-  records.forEach(r => {
-    const opt = document.createElement('option');
-    opt.value = r.id;
-    opt.textContent = r.fields[nameField] || r.id;
-    sel.appendChild(opt);
-  });
-}
-
-// ── Lookup helper (resolve linked record ID → name) ─────────
-function lookupName(cache, linkedIds) {
-  if (!linkedIds) return '';
-  const id = Array.isArray(linkedIds) ? linkedIds[0] : linkedIds;
-  const rec = cache.find(r => r.id === id);
-  return rec ? (rec.fields['Full Name'] || rec.fields['Broker Name'] || rec.fields['Company Name'] || rec.fields['Truck Number'] || rec.id) : '';
+  App.fillSelect('loadCompany', _companies, 'Company Name');
+  App.fillSelect('loadBroker',  _brokers,  'Broker Name');
+  App.fillSelect('loadDriver',  _drivers,  'Full Name');
+  App.fillSelect('loadTruck',   _trucks,   'Truck Number');
 }
 
 // ── NEW Load ────────────────────────────────────────────────
@@ -253,6 +231,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function saveLoad() {
+  const btn = document.getElementById('saveLoadBtn');
   const recordId = document.getElementById('loadRecordId').value;
   const fields = {
     'Load Number':    document.getElementById('loadNumber').value.trim(),
@@ -287,7 +266,7 @@ async function saveLoad() {
     return;
   }
 
-  try {
+  await App.withLoading(btn, async () => {
     if (recordId) {
       await Airtable.update(CONFIG.TABLES.LOADS, recordId, fields);
       App.showToast('Load updated!');
@@ -296,10 +275,8 @@ async function saveLoad() {
       App.showToast('Load created!');
     }
     bootstrap.Modal.getInstance(document.getElementById('loadModal')).hide();
-    loadLoadsPage(); // refresh table
-  } catch (err) {
-    App.showToast('Save failed: ' + err.message, 'danger');
-  }
+    loadLoadsPage();
+  });
 }
 
 // ── DELETE Load ─────────────────────────────────────────────
@@ -374,27 +351,61 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function addStop() {
-  const type = prompt('Stop Type (Pickup / Delivery):');
-  if (!type) return;
-  const address  = prompt('Address:');
-  const date     = prompt('Appointment Date/Time (YYYY-MM-DD HH:MM):');
-  const sequence = prompt('Stop Sequence #:');
+  const body = document.getElementById('stopsBody');
+  // If the inline form already exists, focus it
+  if (document.getElementById('stopFormInline')) {
+    document.getElementById('stopAddress').focus();
+    return;
+  }
+  // Render inline form at top of stops body
+  const formHtml = `
+    <div id="stopFormInline" class="card p-3 mb-3" style="border:1.5px solid var(--nd-accent);border-radius:var(--nd-radius-sm);animation:fadeInUp .3s ease">
+      <div class="row g-2 align-items-end">
+        <div class="col-md-3">
+          <label class="form-label">Type</label>
+          <select class="form-select form-select-sm" id="stopType">
+            <option value="Pickup">Pickup</option>
+            <option value="Delivery">Delivery</option>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Address</label>
+          <input type="text" class="form-control form-control-sm" id="stopAddress" placeholder="Enter address…">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Appointment</label>
+          <input type="datetime-local" class="form-control form-control-sm" id="stopDate">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">Seq #</label>
+          <input type="number" class="form-control form-control-sm" id="stopSeq" value="1" min="1">
+        </div>
+      </div>
+      <div class="d-flex gap-2 mt-2">
+        <button class="btn btn-sm btn-nd" id="stopSaveBtn" onclick="saveNewStop()"><i class="bi bi-check-lg me-1"></i>Save Stop</button>
+        <button class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('stopFormInline').remove()">Cancel</button>
+      </div>
+    </div>`;
+  body.insertAdjacentHTML('afterbegin', formHtml);
+  document.getElementById('stopAddress').focus();
+}
 
+async function saveNewStop() {
+  const btn = document.getElementById('stopSaveBtn');
   const fields = {
-    'Load Link':  [_currentLoadId],
-    'Stop Type':  type,
-    'Address':    address || '',
-    'Stop Sequence': parseInt(sequence) || 1,
+    'Load Link':     [_currentLoadId],
+    'Stop Type':     document.getElementById('stopType').value,
+    'Address':       document.getElementById('stopAddress').value.trim() || '',
+    'Stop Sequence': parseInt(document.getElementById('stopSeq').value) || 1,
   };
+  const date = document.getElementById('stopDate').value;
   if (date) fields['Appointment Date/Time'] = new Date(date).toISOString();
 
-  try {
+  await App.withLoading(btn, async () => {
     await Airtable.create(CONFIG.TABLES.LOAD_STOPS, fields);
     App.showToast('Stop added!');
     openStops(_currentLoadId, document.getElementById('stopsLoadNum').textContent);
-  } catch (err) {
-    App.showToast('Failed to add stop: ' + err.message, 'danger');
-  }
+  });
 }
 
 async function deleteStop(stopId) {

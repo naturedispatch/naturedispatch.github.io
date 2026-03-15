@@ -14,7 +14,7 @@ async function loadTrucksPage() {
   try {
     if (_coCache.length === 0) {
       _coCache = await Airtable.getAll(CONFIG.TABLES.COMPANIES);
-      _fillCoSelect('truckCompany', _coCache);
+      App.fillSelect('truckCompany', _coCache, 'Company Name');
     }
 
     const params = { 'sort[0][field]': 'Truck Number', 'sort[0][direction]': 'asc' };
@@ -40,7 +40,7 @@ async function loadTrucksPage() {
               const stCls = f['Status'] === 'Active' ? 'bg-success' : f['Status'] === 'In Maintenance' ? 'bg-warning text-dark' : 'bg-secondary';
               return `<tr>
                 <td class="fw-semibold">${f['Truck Number'] || '—'}</td>
-                <td>${_lookCo(f['Company'])}</td>
+                <td>${App.lookupName(_coCache, f['Company'], 'Company Name')}</td>
                 <td><small>${f['VIN / Plate'] || '—'}</small></td>
                 <td><span class="badge ${stCls}">${f['Status'] || 'N/A'}</span></td>
                 <td class="text-center text-nowrap">
@@ -56,22 +56,6 @@ async function loadTrucksPage() {
   } catch (err) {
     body.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
   }
-}
-
-function _lookCo(ids) {
-  if (!ids) return '—';
-  const id = Array.isArray(ids) ? ids[0] : ids;
-  const r = _coCache.find(c => c.id === id);
-  return r ? r.fields['Company Name'] : '—';
-}
-
-function _fillCoSelect(elId, cos) {
-  const sel = document.getElementById(elId);
-  if (!sel) return;
-  const ph = sel.querySelector('option');
-  sel.innerHTML = '';
-  sel.appendChild(ph);
-  cos.forEach(c => { const o = document.createElement('option'); o.value = c.id; o.textContent = c.fields['Company Name']; sel.appendChild(o); });
 }
 
 // ── Create ──────────────────────────────────────────────────
@@ -104,6 +88,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function saveTruck() {
+  const btn = document.getElementById('saveTruckBtn');
   const id = document.getElementById('truckRecordId').value;
 
   const fields = {
@@ -116,12 +101,12 @@ async function saveTruck() {
 
   if (!fields['Truck Number']) { App.showToast('Truck Number is required', 'warning'); return; }
 
-  try {
+  await App.withLoading(btn, async () => {
     if (id) { await Airtable.update(CONFIG.TABLES.TRUCKS, id, fields); App.showToast('Updated!'); }
     else    { await Airtable.create(CONFIG.TABLES.TRUCKS, fields); App.showToast('Created!'); }
     bootstrap.Modal.getInstance(document.getElementById('truckModal')).hide();
     loadTrucksPage();
-  } catch (err) { App.showToast(err.message, 'danger'); }
+  });
 }
 
 // ── Delete ──────────────────────────────────────────────────

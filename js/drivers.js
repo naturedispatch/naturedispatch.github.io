@@ -18,8 +18,8 @@ async function loadDriversPage() {
         Airtable.getAll(CONFIG.TABLES.COMPANIES),
         Airtable.getAll(CONFIG.TABLES.TRUCKS),
       ]);
-      fillCompanySelect('driverCompany', _companiesCache);
-      fillTruckSelect('driverTruck', _trucksCache);
+      App.fillSelect('driverCompany', _companiesCache, 'Company Name');
+      App.fillSelect('driverTruck', _trucksCache, 'Truck Number');
     }
 
     const params = { 'sort[0][field]': 'Full Name', 'sort[0][direction]': 'asc' };
@@ -70,8 +70,8 @@ function availabilityBadge(status) {
 
 function driverRow(rec) {
   const f = rec.fields;
-  const companyName = lookupCompany(f['Company']);
-  const truckName = lookupTruck(f['Assigned Truck']);
+  const companyName = App.lookupName(_companiesCache, f['Company'], 'Company Name');
+  const truckName = App.lookupName(_trucksCache, f['Assigned Truck'], 'Truck Number');
   return `
   <tr>
     <td class="fw-semibold">${f['Full Name'] || '—'}</td>
@@ -85,48 +85,6 @@ function driverRow(rec) {
       <button class="btn btn-sm btn-action btn-outline-danger" onclick="deleteDriver('${rec.id}')"><i class="bi bi-trash"></i></button>
     </td>
   </tr>`;
-}
-
-function lookupCompany(ids) {
-  if (!ids) return '—';
-  const id = Array.isArray(ids) ? ids[0] : ids;
-  const r = _companiesCache.find(c => c.id === id);
-  return r ? r.fields['Company Name'] : '—';
-}
-
-function lookupTruck(ids) {
-  if (!ids) return '—';
-  const id = Array.isArray(ids) ? ids[0] : ids;
-  const r = _trucksCache.find(c => c.id === id);
-  return r ? (r.fields['Truck Number'] || r.id) : '—';
-}
-
-function fillTruckSelect(elId, trucks) {
-  const sel = document.getElementById(elId);
-  if (!sel) return;
-  const placeholder = sel.querySelector('option');
-  sel.innerHTML = '';
-  sel.appendChild(placeholder);
-  trucks.forEach(t => {
-    const opt = document.createElement('option');
-    opt.value = t.id;
-    opt.textContent = t.fields['Truck Number'] || t.id;
-    sel.appendChild(opt);
-  });
-}
-
-function fillCompanySelect(elId, companies) {
-  const sel = document.getElementById(elId);
-  if (!sel) return;
-  const placeholder = sel.querySelector('option');
-  sel.innerHTML = '';
-  sel.appendChild(placeholder);
-  companies.forEach(c => {
-    const opt = document.createElement('option');
-    opt.value = c.id;
-    opt.textContent = c.fields['Company Name'];
-    sel.appendChild(opt);
-  });
 }
 
 // ── Create ────────────────────────────────────────────────
@@ -162,6 +120,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function saveDriver() {
+  const btn = document.getElementById('saveDriverBtn');
   const id = document.getElementById('driverRecordId').value;
   const fields = {
     'Full Name':    document.getElementById('driverName').value.trim(),
@@ -176,12 +135,12 @@ async function saveDriver() {
 
   if (!fields['Full Name']) { App.showToast('Full Name is required', 'warning'); return; }
 
-  try {
+  await App.withLoading(btn, async () => {
     if (id) { await Airtable.update(CONFIG.TABLES.DRIVERS, id, fields); App.showToast('Driver updated!'); }
     else    { await Airtable.create(CONFIG.TABLES.DRIVERS, fields); App.showToast('Driver created!'); }
     bootstrap.Modal.getInstance(document.getElementById('driverModal')).hide();
     loadDriversPage();
-  } catch (err) { App.showToast(err.message, 'danger'); }
+  });
 }
 
 // ── Delete ────────────────────────────────────────────────
