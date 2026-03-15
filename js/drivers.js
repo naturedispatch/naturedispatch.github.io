@@ -39,12 +39,12 @@ async function loadDriversPage() {
             <thead>
               <tr>
                 <th>Full Name</th><th>Company</th><th>Driver Type</th>
-                <th>Pay Method</th><th>Assigned Truck</th><th class="text-center">Actions</th>
+                <th>Pay Method</th><th>Assigned Truck</th><th>Availability</th><th class="text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
               ${drivers.map(d => driverRow(d)).join('')}
-              ${drivers.length === 0 ? '<tr><td colspan="6" class="empty-state"><i class="bi bi-person-x"></i><p>No drivers found</p></td></tr>' : ''}
+              ${drivers.length === 0 ? '<tr><td colspan="7" class="empty-state"><i class="bi bi-person-x"></i><p>No drivers found</p></td></tr>' : ''}
             </tbody>
           </table>
         </div>
@@ -52,6 +52,17 @@ async function loadDriversPage() {
   } catch (err) {
     body.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
   }
+}
+
+function availabilityBadge(status) {
+  const map = {
+    'Available':      'bg-success',
+    'On Load':        'bg-primary',
+    'Off Duty':       'bg-secondary',
+    'Home Time':      'bg-warning text-dark',
+    'Out of Service': 'bg-danger',
+  };
+  return `<span class="badge ${map[status] || 'bg-secondary'}">${status || '—'}</span>`;
 }
 
 function driverRow(rec) {
@@ -65,6 +76,7 @@ function driverRow(rec) {
     <td>${f['Driver Type'] || '—'}</td>
     <td>${f['Pay Method'] || '—'}</td>
     <td>${truckName}</td>
+    <td>${availabilityBadge(f['Availability'])}</td>
     <td class="text-center text-nowrap">
       <button class="btn btn-sm btn-action btn-outline-secondary me-1" onclick="openEditDriver('${rec.id}')"><i class="bi bi-pencil"></i></button>
       <button class="btn btn-sm btn-action btn-outline-danger" onclick="deleteDriver('${rec.id}')"><i class="bi bi-trash"></i></button>
@@ -136,6 +148,7 @@ async function openEditDriver(id) {
     document.getElementById('driverCompany').value = cid;
     const tid = Array.isArray(f['Assigned Truck']) ? f['Assigned Truck'][0] : f['Assigned Truck'] || '';
     document.getElementById('driverTruck').value = tid;
+    document.getElementById('driverAvailability').value = f['Availability'] || '';
     new bootstrap.Modal(document.getElementById('driverModal')).show();
   } catch (err) { App.showToast(err.message, 'danger'); }
 }
@@ -148,9 +161,10 @@ document.addEventListener('DOMContentLoaded', () => {
 async function saveDriver() {
   const id = document.getElementById('driverRecordId').value;
   const fields = {
-    'Full Name':   document.getElementById('driverName').value.trim(),
-    'Driver Type': document.getElementById('driverType').value,
-    'Pay Method':  document.getElementById('driverPayMethod').value,
+    'Full Name':    document.getElementById('driverName').value.trim(),
+    'Driver Type':  document.getElementById('driverType').value,
+    'Pay Method':   document.getElementById('driverPayMethod').value,
+    'Availability': document.getElementById('driverAvailability').value || null,
   };
   const company = document.getElementById('driverCompany').value;
   if (company) fields['Company'] = [company];

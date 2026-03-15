@@ -25,6 +25,7 @@ const CONFIG = {
     TOLLS:       'Toll Transactions',
     EXPENSES:    'Expenses',
     SETTLEMENTS: 'Settlements',
+    ALERTS:      'Alerts',
   },
 
   // ── Company IDs (Airtable record IDs) ─────────────────────

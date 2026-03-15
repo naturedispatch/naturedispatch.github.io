@@ -1,6 +1,7 @@
 /**
  * ============================================================
- * NATURE DISPATCH TMS — Loads Module (Full CRUD)
+ * NATURE DISPATCH TMS — Loads Module (Full CRUD + BRD Features)
+ * ETA tracking, Document control, Invoice readiness, Load Stops
  * ============================================================
  */
 
@@ -53,13 +54,16 @@ async function loadLoadsPage() {
                 <th>Driver</th>
                 <th>Truck</th>
                 <th>Revenue</th>
+                <th>ETA</th>
+                <th>Docs</th>
+                <th>Invoice</th>
                 <th>Status</th>
                 <th class="text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
               ${loads.map(l => loadRow(l)).join('')}
-              ${loads.length === 0 ? '<tr><td colspan="8" class="empty-state"><i class="bi bi-inbox"></i><p>No loads found</p></td></tr>' : ''}
+              ${loads.length === 0 ? '<tr><td colspan="11" class="empty-state"><i class="bi bi-inbox"></i><p>No loads found</p></td></tr>' : ''}
             </tbody>
           </table>
         </div>
@@ -68,6 +72,43 @@ async function loadLoadsPage() {
     body.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
     console.error(err);
   }
+}
+
+// ── Document status helper ──────────────────────────────────
+function docStatus(fields) {
+  const hasRateCon = fields['Rate Con PDF'] && fields['Rate Con PDF'].length > 0;
+  const hasBOL     = fields['BOL PDF'] && fields['BOL PDF'].length > 0;
+  const hasInvoice = fields['Invoice PDF'] && fields['Invoice PDF'].length > 0;
+  const count = (hasRateCon ? 1 : 0) + (hasBOL ? 1 : 0) + (hasInvoice ? 1 : 0);
+  if (count === 3) return '<span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>3/3</span>';
+  if (count > 0)   return `<span class="badge bg-warning text-dark"><i class="bi bi-exclamation-circle me-1"></i>${count}/3</span>`;
+  return '<span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>0/3</span>';
+}
+
+// ── Invoice status badge ────────────────────────────────────
+function invoiceBadge(status) {
+  const map = {
+    'Not Ready':        'bg-secondary',
+    'Docs Missing':     'bg-warning text-dark',
+    'Ready to Invoice': 'bg-info',
+    'Invoiced':         'bg-primary',
+    'Paid':             'bg-success',
+    'Disputed':         'bg-danger',
+  };
+  return `<span class="badge ${map[status] || 'bg-secondary'}">${status || '—'}</span>`;
+}
+
+// ── ETA display helper ──────────────────────────────────────
+function etaDisplay(eta) {
+  if (!eta) return '<span class="text-muted">—</span>';
+  const etaDate = new Date(eta);
+  const now = new Date();
+  const diffHrs = (etaDate - now) / (1000 * 60 * 60);
+  let cls = 'text-muted';
+  if (diffHrs < 0) cls = 'text-danger fw-bold';        // overdue
+  else if (diffHrs < 2) cls = 'text-warning fw-bold';  // arriving soon
+  else cls = 'text-success';
+  return `<span class="${cls}">${App.formatDate(eta)}</span>`;
 }
 
 function loadRow(rec) {
@@ -80,10 +121,13 @@ function loadRow(rec) {
     <td>${lookupName(_drivers, f['Driver']) || '—'}</td>
     <td>${lookupName(_trucks, f['Truck']) || '—'}</td>
     <td>${App.formatCurrency(f['Revenue'])}</td>
+    <td>${etaDisplay(f['ETA'])}</td>
+    <td>${docStatus(f)}</td>
+    <td>${invoiceBadge(f['Invoice Status'])}</td>
     <td>${App.statusBadge(f['Status'])}</td>
     <td class="text-center text-nowrap">
       <button class="btn btn-sm btn-action btn-outline-primary me-1" title="Stops"
-        onclick="openStops('${rec.id}', '${f['Load Number'] || ''}')">
+        onclick="openStops('${rec.id}', '${(f['Load Number'] || '').replace(/'/g, "\\'")}')">
         <i class="bi bi-geo-alt"></i>
       </button>
       <button class="btn btn-sm btn-action btn-outline-secondary me-1" title="Edit"
@@ -133,6 +177,8 @@ function openNewLoad() {
   document.getElementById('loadModalTitle').textContent = 'New Load';
   document.getElementById('loadForm').reset();
   document.getElementById('loadRecordId').value = '';
+  const indicator = document.getElementById('loadDocsIndicator');
+  if (indicator) indicator.innerHTML = '<i class="bi bi-file-earmark me-1"></i>Save load first, then upload docs in Airtable';
   new bootstrap.Modal(document.getElementById('loadModal')).show();
 }
 
@@ -144,9 +190,17 @@ async function openEditLoad(recordId) {
 
     document.getElementById('loadModalTitle').textContent = `Edit Load — ${f['Load Number'] || ''}`;
     document.getElementById('loadRecordId').value = rec.id;
-    document.getElementById('loadNumber').value  = f['Load Number'] || '';
-    document.getElementById('loadStatus').value  = f['Status'] || 'New';
-    document.getElementById('loadRevenue').value = f['Revenue'] || '';
+    document.getElementById('loadNumber').value       = f['Load Number'] || '';
+    document.getElementById('loadStatus').value       = f['Status'] || 'New';
+    document.getElementById('loadRevenue').value      = f['Revenue'] || '';
+    document.getElementById('loadMiles').value        = f['Miles'] || '';
+    document.getElementById('loadNotes').value        = f['Notes'] || '';
+    document.getElementById('loadInvoiceStatus').value = f['Invoice Status'] || '';
+
+    // DateTime fields (convert from ISO to datetime-local format)
+    setDateTimeInput('loadPickupDate', f['Pickup Date']);
+    setDateTimeInput('loadDeliveryDate', f['Delivery Date']);
+    setDateTimeInput('loadETA', f['ETA']);
 
     // Linked records (arrays)
     setSelectValue('loadCompany', f['Company']);
@@ -154,10 +208,33 @@ async function openEditLoad(recordId) {
     setSelectValue('loadDriver',  f['Driver']);
     setSelectValue('loadTruck',   f['Truck']);
 
+    // Document indicator
+    const indicator = document.getElementById('loadDocsIndicator');
+    if (indicator) {
+      const hasRateCon = f['Rate Con PDF'] && f['Rate Con PDF'].length > 0;
+      const hasBOL     = f['BOL PDF'] && f['BOL PDF'].length > 0;
+      const hasInvoice = f['Invoice PDF'] && f['Invoice PDF'].length > 0;
+      indicator.innerHTML = `
+        <span class="${hasRateCon ? 'text-success' : 'text-danger'}"><i class="bi bi-${hasRateCon ? 'check' : 'x'}-circle me-1"></i>Rate Con</span>
+        <span class="mx-1">|</span>
+        <span class="${hasBOL ? 'text-success' : 'text-danger'}"><i class="bi bi-${hasBOL ? 'check' : 'x'}-circle me-1"></i>BOL</span>
+        <span class="mx-1">|</span>
+        <span class="${hasInvoice ? 'text-success' : 'text-danger'}"><i class="bi bi-${hasInvoice ? 'check' : 'x'}-circle me-1"></i>Invoice</span>`;
+    }
+
     new bootstrap.Modal(document.getElementById('loadModal')).show();
   } catch (err) {
     App.showToast('Could not load record: ' + err.message, 'danger');
   }
+}
+
+function setDateTimeInput(id, isoValue) {
+  const el = document.getElementById(id);
+  if (!el || !isoValue) { if (el) el.value = ''; return; }
+  // Convert ISO to datetime-local format (YYYY-MM-DDTHH:MM)
+  const d = new Date(isoValue);
+  const pad = n => String(n).padStart(2, '0');
+  el.value = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 function setSelectValue(id, linkedIds) {
@@ -174,10 +251,21 @@ document.addEventListener('DOMContentLoaded', () => {
 async function saveLoad() {
   const recordId = document.getElementById('loadRecordId').value;
   const fields = {
-    'Load Number': document.getElementById('loadNumber').value.trim(),
-    'Status':      document.getElementById('loadStatus').value,
-    'Revenue':     parseFloat(document.getElementById('loadRevenue').value) || 0,
+    'Load Number':    document.getElementById('loadNumber').value.trim(),
+    'Status':         document.getElementById('loadStatus').value,
+    'Revenue':        parseFloat(document.getElementById('loadRevenue').value) || 0,
+    'Miles':          parseInt(document.getElementById('loadMiles').value) || 0,
+    'Notes':          document.getElementById('loadNotes').value.trim(),
+    'Invoice Status': document.getElementById('loadInvoiceStatus').value || null,
   };
+
+  // DateTime fields → convert to ISO
+  const pickup   = document.getElementById('loadPickupDate').value;
+  const delivery = document.getElementById('loadDeliveryDate').value;
+  const eta      = document.getElementById('loadETA').value;
+  if (pickup)   fields['Pickup Date']   = new Date(pickup).toISOString();
+  if (delivery) fields['Delivery Date'] = new Date(delivery).toISOString();
+  if (eta)      fields['ETA']           = new Date(eta).toISOString();
 
   // Linked record fields → must be arrays
   const company = document.getElementById('loadCompany').value;
@@ -185,10 +273,10 @@ async function saveLoad() {
   const driver  = document.getElementById('loadDriver').value;
   const truck   = document.getElementById('loadTruck').value;
 
-  if (company) fields['Company'] = [company];
+  if (company) fields['Company']          = [company];
   if (broker)  fields['Brokers/Shippers'] = [broker];
-  if (driver)  fields['Driver']  = [driver];
-  if (truck)   fields['Truck']   = [truck];
+  if (driver)  fields['Driver']           = [driver];
+  if (truck)   fields['Truck']            = [truck];
 
   if (!fields['Load Number']) {
     App.showToast('Load Number is required', 'warning');
@@ -223,6 +311,7 @@ async function deleteLoad(recordId) {
 }
 
 // ── LOAD STOPS ──────────────────────────────────────────────
+// Airtable field names: Load Link, Stop Type, Stop Sequence, Appointment Date/Time, Address
 let _currentLoadId = '';
 
 async function openStops(loadId, loadNum) {
@@ -231,7 +320,8 @@ async function openStops(loadId, loadNum) {
 
   try {
     const params = {
-      'sort[0][field]': 'Address',
+      filterByFormula: `FIND("${loadId}", ARRAYJOIN({Load Link}))`,
+      'sort[0][field]': 'Stop Sequence',
       'sort[0][direction]': 'asc',
     };
     const stops = await Airtable.getAll(CONFIG.TABLES.LOAD_STOPS, params);
@@ -252,14 +342,17 @@ function renderStops(stops) {
     <div class="table-responsive">
       <table class="table table-sm">
         <thead>
-          <tr><th>Address</th><th>Actions</th></tr>
+          <tr><th>#</th><th>Type</th><th>Address</th><th>Appointment</th><th>Actions</th></tr>
         </thead>
         <tbody>
           ${stops.map(s => {
             const f = s.fields;
             return `
             <tr>
+              <td>${f['Stop Sequence'] || ''}</td>
+              <td><span class="badge ${f['Stop Type'] === 'Pickup' ? 'bg-info' : 'bg-success'}">${f['Stop Type'] || ''}</span></td>
               <td>${f['Address'] || ''}</td>
+              <td>${App.formatDate(f['Appointment Date/Time'])}</td>
               <td>
                 <button class="btn btn-sm btn-action btn-outline-danger" onclick="deleteStop('${s.id}')">
                   <i class="bi bi-trash"></i>
@@ -277,13 +370,22 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function addStop() {
-  const address = prompt('Stop Address:');
-  if (!address) return;
+  const type = prompt('Stop Type (Pickup / Delivery):');
+  if (!type) return;
+  const address  = prompt('Address:');
+  const date     = prompt('Appointment Date/Time (YYYY-MM-DD HH:MM):');
+  const sequence = prompt('Stop Sequence #:');
+
+  const fields = {
+    'Load Link':  [_currentLoadId],
+    'Stop Type':  type,
+    'Address':    address || '',
+    'Stop Sequence': parseInt(sequence) || 1,
+  };
+  if (date) fields['Appointment Date/Time'] = new Date(date).toISOString();
 
   try {
-    await Airtable.create(CONFIG.TABLES.LOAD_STOPS, {
-      Address: address,
-    });
+    await Airtable.create(CONFIG.TABLES.LOAD_STOPS, fields);
     App.showToast('Stop added!');
     openStops(_currentLoadId, document.getElementById('stopsLoadNum').textContent);
   } catch (err) {

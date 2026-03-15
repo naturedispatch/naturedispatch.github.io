@@ -24,6 +24,7 @@
           <form id="loadForm">
             <input type="hidden" id="loadRecordId">
             <div class="row g-3">
+              <!-- Row 1: Core identifiers -->
               <div class="col-md-4">
                 <label class="form-label">Load Number *</label>
                 <input type="text" class="form-control" id="loadNumber" required>
@@ -46,6 +47,7 @@
                   <option value="Cancelled">Cancelled</option>
                 </select>
               </div>
+              <!-- Row 2: Assignments -->
               <div class="col-md-4">
                 <label class="form-label">Broker</label>
                 <select class="form-select" id="loadBroker">
@@ -64,9 +66,51 @@
                   <option value="">Select…</option>
                 </select>
               </div>
+              <!-- Row 3: Dates & ETA -->
+              <div class="col-md-3">
+                <label class="form-label">Pickup Date</label>
+                <input type="datetime-local" class="form-control" id="loadPickupDate">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Delivery Date</label>
+                <input type="datetime-local" class="form-control" id="loadDeliveryDate">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">ETA</label>
+                <input type="datetime-local" class="form-control" id="loadETA">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Invoice Status</label>
+                <select class="form-select" id="loadInvoiceStatus">
+                  <option value="">Select…</option>
+                  <option value="Not Ready">Not Ready</option>
+                  <option value="Docs Missing">Docs Missing</option>
+                  <option value="Ready to Invoice">Ready to Invoice</option>
+                  <option value="Invoiced">Invoiced</option>
+                  <option value="Paid">Paid</option>
+                  <option value="Disputed">Disputed</option>
+                </select>
+              </div>
+              <!-- Row 4: Revenue, Miles, Notes -->
               <div class="col-md-4">
                 <label class="form-label">Revenue ($)</label>
                 <input type="number" step="0.01" class="form-control" id="loadRevenue">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Miles</label>
+                <input type="number" class="form-control" id="loadMiles">
+              </div>
+              <div class="col-md-4 d-flex align-items-end">
+                <div class="w-100">
+                  <label class="form-label">Documents</label>
+                  <div class="text-muted small" id="loadDocsIndicator">
+                    <i class="bi bi-file-earmark me-1"></i>Save load first, then upload docs in Airtable
+                  </div>
+                </div>
+              </div>
+              <div class="col-12">
+                <label class="form-label">Notes</label>
+                <textarea class="form-control" id="loadNotes" rows="2" placeholder="Operational notes…"></textarea>
               </div>
             </div>
           </form>
