@@ -84,10 +84,10 @@ async function loadDashboard() {
                   ${loads.slice(0, 10).map(l => `
                   <tr>
                     <td class="fw-semibold">${l.fields['Load Number'] || '—'}</td>
-                    <td>${(l.fields['Broker Name'] && l.fields['Broker Name'][0]) || l.fields['Broker'] || '—'}</td>
+                    <td>${(l.fields['Broker Name'] && l.fields['Broker Name'][0]) || '—'}</td>
                     <td>${App.formatCurrency(l.fields['Revenue'])}</td>
                     <td>${App.statusBadge(l.fields['Status'])}</td>
-                    <td>${App.formatDate(l.fields['Created'] || l.fields['Date'])}</td>
+                    <td>${App.formatDate(l.createdTime)}</td>
                   </tr>`).join('')}
                   ${loads.length === 0 ? '<tr><td colspan="5" class="text-center text-muted py-4">No loads found</td></tr>' : ''}
                 </tbody>

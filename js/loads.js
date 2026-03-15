@@ -53,15 +53,13 @@ async function loadLoadsPage() {
                 <th>Driver</th>
                 <th>Truck</th>
                 <th>Revenue</th>
-                <th>Miles</th>
                 <th>Status</th>
-                <th>Date</th>
                 <th class="text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
               ${loads.map(l => loadRow(l)).join('')}
-              ${loads.length === 0 ? '<tr><td colspan="10" class="empty-state"><i class="bi bi-inbox"></i><p>No loads found</p></td></tr>' : ''}
+              ${loads.length === 0 ? '<tr><td colspan="8" class="empty-state"><i class="bi bi-inbox"></i><p>No loads found</p></td></tr>' : ''}
             </tbody>
           </table>
         </div>
@@ -78,13 +76,11 @@ function loadRow(rec) {
   <tr>
     <td class="fw-semibold">${f['Load Number'] || '—'}</td>
     <td>${lookupName(_companies, f['Company']) || '—'}</td>
-    <td>${lookupName(_brokers, f['Broker']) || '—'}</td>
+    <td>${lookupName(_brokers, f['Brokers/Shippers']) || '—'}</td>
     <td>${lookupName(_drivers, f['Driver']) || '—'}</td>
     <td>${lookupName(_trucks, f['Truck']) || '—'}</td>
     <td>${App.formatCurrency(f['Revenue'])}</td>
-    <td>${f['Miles'] || '—'}</td>
     <td>${App.statusBadge(f['Status'])}</td>
-    <td>${App.formatDate(f['Date'])}</td>
     <td class="text-center text-nowrap">
       <button class="btn btn-sm btn-action btn-outline-primary me-1" title="Stops"
         onclick="openStops('${rec.id}', '${f['Load Number'] || ''}')">
@@ -151,13 +147,10 @@ async function openEditLoad(recordId) {
     document.getElementById('loadNumber').value  = f['Load Number'] || '';
     document.getElementById('loadStatus').value  = f['Status'] || 'New';
     document.getElementById('loadRevenue').value = f['Revenue'] || '';
-    document.getElementById('loadDate').value    = f['Date'] || '';
-    document.getElementById('loadMiles').value   = f['Miles'] || '';
-    document.getElementById('loadNotes').value   = f['Notes'] || '';
 
     // Linked records (arrays)
     setSelectValue('loadCompany', f['Company']);
-    setSelectValue('loadBroker',  f['Broker']);
+    setSelectValue('loadBroker',  f['Brokers/Shippers']);
     setSelectValue('loadDriver',  f['Driver']);
     setSelectValue('loadTruck',   f['Truck']);
 
@@ -184,9 +177,6 @@ async function saveLoad() {
     'Load Number': document.getElementById('loadNumber').value.trim(),
     'Status':      document.getElementById('loadStatus').value,
     'Revenue':     parseFloat(document.getElementById('loadRevenue').value) || 0,
-    'Date':        document.getElementById('loadDate').value || null,
-    'Miles':       parseInt(document.getElementById('loadMiles').value) || 0,
-    'Notes':       document.getElementById('loadNotes').value.trim(),
   };
 
   // Linked record fields → must be arrays
@@ -196,7 +186,7 @@ async function saveLoad() {
   const truck   = document.getElementById('loadTruck').value;
 
   if (company) fields['Company'] = [company];
-  if (broker)  fields['Broker']  = [broker];
+  if (broker)  fields['Brokers/Shippers'] = [broker];
   if (driver)  fields['Driver']  = [driver];
   if (truck)   fields['Truck']   = [truck];
 
@@ -241,8 +231,7 @@ async function openStops(loadId, loadNum) {
 
   try {
     const params = {
-      filterByFormula: `FIND("${loadId}", ARRAYJOIN({Load}))`,
-      'sort[0][field]': 'Sequence',
+      'sort[0][field]': 'Address',
       'sort[0][direction]': 'asc',
     };
     const stops = await Airtable.getAll(CONFIG.TABLES.LOAD_STOPS, params);
@@ -263,17 +252,14 @@ function renderStops(stops) {
     <div class="table-responsive">
       <table class="table table-sm">
         <thead>
-          <tr><th>#</th><th>Type</th><th>Address</th><th>Date</th><th>Actions</th></tr>
+          <tr><th>Address</th><th>Actions</th></tr>
         </thead>
         <tbody>
           ${stops.map(s => {
             const f = s.fields;
             return `
             <tr>
-              <td>${f['Sequence'] || ''}</td>
-              <td><span class="badge ${f['Type'] === 'Pick' ? 'bg-info' : 'bg-success'}">${f['Type'] || ''}</span></td>
               <td>${f['Address'] || ''}</td>
-              <td>${App.formatDate(f['Date'])}</td>
               <td>
                 <button class="btn btn-sm btn-action btn-outline-danger" onclick="deleteStop('${s.id}')">
                   <i class="bi bi-trash"></i>
@@ -291,19 +277,12 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function addStop() {
-  const type = prompt('Stop Type (Pick / Drop):');
-  if (!type) return;
-  const address  = prompt('Address:');
-  const date     = prompt('Date (YYYY-MM-DD):');
-  const sequence = prompt('Sequence #:');
+  const address = prompt('Stop Address:');
+  if (!address) return;
 
   try {
     await Airtable.create(CONFIG.TABLES.LOAD_STOPS, {
-      Load:     [_currentLoadId],
-      Type:     type,
-      Address:  address || '',
-      Date:     date || null,
-      Sequence: parseInt(sequence) || 1,
+      Address: address,
     });
     App.showToast('Stop added!');
     openStops(_currentLoadId, document.getElementById('stopsLoadNum').textContent);
