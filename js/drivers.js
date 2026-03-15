@@ -31,7 +31,10 @@ async function loadDriversPage() {
     body.innerHTML = `
       <div class="d-flex justify-content-between align-items-center mb-3">
         <span class="text-muted">${drivers.length} driver(s)</span>
-        <button class="btn btn-nd" onclick="openNewDriver()"><i class="bi bi-plus-lg me-1"></i>New Driver</button>
+        <div class="d-flex gap-2">
+          ${CSV.buttons('Drivers')}
+          <button class="btn btn-nd" onclick="openNewDriver()"><i class="bi bi-plus-lg me-1"></i>New Driver</button>
+        </div>
       </div>
       <div class="table-container">
         <div class="table-responsive">

@@ -40,6 +40,7 @@ const App = (() => {
     const links = [
       { href: 'index.html',       icon: 'bi-speedometer2',    label: 'Dashboard' },
       { href: 'loads.html',       icon: 'bi-box-seam',        label: 'Loads' },
+      { href: 'pipeline.html',   icon: 'bi-kanban',          label: 'Pipeline' },
       { href: 'drivers.html',     icon: 'bi-person-badge',    label: 'Drivers' },
       { href: 'trucks.html',      icon: 'bi-truck',           label: 'Trucks & Trailers' },
       { href: 'brokers.html',     icon: 'bi-building',        label: 'Brokers' },
@@ -47,6 +48,7 @@ const App = (() => {
       { href: 'settlements.html', icon: 'bi-calculator',      label: 'Settlements' },
       { href: 'expenses.html',    icon: 'bi-receipt',         label: 'Expenses' },
       { href: 'alerts.html',      icon: 'bi-bell',            label: 'Alerts' },
+      { href: 'reports.html',    icon: 'bi-graph-up',        label: 'Reports' },
     ];
 
     const nav = links

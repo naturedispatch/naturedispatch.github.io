@@ -49,7 +49,10 @@ async function loadExpensesPage() {
           <span class="text-muted">${all.length} record(s)</span>
           <span class="ms-3 fw-bold">Total: ${App.formatCurrency(totalAmount)}</span>
         </div>
-        <button class="btn btn-nd" onclick="openNewExpense()"><i class="bi bi-plus-lg me-1"></i>New Expense</button>
+        <div class="d-flex gap-2">
+          ${CSV.buttons('Expenses')}
+          <button class="btn btn-nd" onclick="openNewExpense()"><i class="bi bi-plus-lg me-1"></i>New Expense</button>
+        </div>
       </div>
 
       <!-- Category tabs -->

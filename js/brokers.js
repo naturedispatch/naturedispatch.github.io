@@ -15,7 +15,10 @@ async function loadBrokersPage() {
     body.innerHTML = `
       <div class="d-flex justify-content-between align-items-center mb-3">
         <span class="text-muted">${brokers.length} broker(s)</span>
-        <button class="btn btn-nd" onclick="openNewBroker()"><i class="bi bi-plus-lg me-1"></i>New Broker</button>
+        <div class="d-flex gap-2">
+          ${CSV.buttons('Brokers')}
+          <button class="btn btn-nd" onclick="openNewBroker()"><i class="bi bi-plus-lg me-1"></i>New Broker</button>
+        </div>
       </div>
       <div class="table-container"><div class="table-responsive">
         <table class="table table-hover align-middle">

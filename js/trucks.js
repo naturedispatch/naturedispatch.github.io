@@ -26,7 +26,10 @@ async function loadTrucksPage() {
     body.innerHTML = `
       <div class="d-flex justify-content-between align-items-center mb-3">
         <span class="text-muted">${trucks.length} truck(s)</span>
-        <button class="btn btn-nd" onclick="openNewTruck()"><i class="bi bi-plus-lg me-1"></i>New Truck</button>
+        <div class="d-flex gap-2">
+          ${CSV.buttons('Trucks')}
+          <button class="btn btn-nd" onclick="openNewTruck()"><i class="bi bi-plus-lg me-1"></i>New Truck</button>
+        </div>
       </div>
       <div class="table-container"><div class="table-responsive">
         <table class="table table-hover align-middle">

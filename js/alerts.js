@@ -65,7 +65,10 @@ async function loadAlertsPage() {
 
       <div class="d-flex justify-content-between align-items-center mb-3">
         <span class="text-muted">${alerts.length} alert(s)</span>
-        <button class="btn btn-nd" onclick="openNewAlert()"><i class="bi bi-plus-lg me-1"></i>New Alert</button>
+        <div class="d-flex gap-2">
+          ${CSV.buttons('Alerts')}
+          <button class="btn btn-nd" onclick="openNewAlert()"><i class="bi bi-plus-lg me-1"></i>New Alert</button>
+        </div>
       </div>
 
       <div class="table-container">

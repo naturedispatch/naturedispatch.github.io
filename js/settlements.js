@@ -25,7 +25,10 @@ async function loadSettlementsPage() {
     body.innerHTML = `
       <div class="d-flex justify-content-between align-items-center mb-3">
         <span class="text-muted">${settlements.length} settlement(s)</span>
-        <button class="btn btn-nd" onclick="openNewSettlement()"><i class="bi bi-plus-lg me-1"></i>New Settlement</button>
+        <div class="d-flex gap-2">
+          ${CSV.buttons('Settlements')}
+          <button class="btn btn-nd" onclick="openNewSettlement()"><i class="bi bi-plus-lg me-1"></i>New Settlement</button>
+        </div>
       </div>
       <div class="table-container"><div class="table-responsive">
         <table class="table table-hover align-middle">

@@ -38,9 +38,13 @@ async function loadLoadsPage() {
         <div>
           <span class="text-muted">${loads.length} load(s)</span>
         </div>
-        <button class="btn btn-nd" onclick="openNewLoad()">
-          <i class="bi bi-plus-lg me-1"></i>New Load
-        </button>
+        <div class="d-flex gap-2">
+          ${CSV.buttons('Loads')}
+          <a href="pipeline.html" class="btn btn-sm btn-outline-nd"><i class="bi bi-kanban me-1"></i>Pipeline</a>
+          <button class="btn btn-nd" onclick="openNewLoad()">
+            <i class="bi bi-plus-lg me-1"></i>New Load
+          </button>
+        </div>
       </div>
 
       <div class="table-container">
