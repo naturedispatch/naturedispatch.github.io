@@ -71,6 +71,11 @@ const App = (() => {
       <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:1.2px;color:rgba(255,255,255,.25);font-weight:700;padding:0 14px;margin-bottom:8px">Menu</div>
       <ul class="nav nav-pills flex-column mb-auto">${nav}
         <li class="nav-item" style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.06)">
+          <a class="nav-link${page === 'settings.html' ? ' active' : ''}" href="settings.html">
+            <i class="bi bi-gear me-2"></i>Settings
+          </a>
+        </li>
+        <li class="nav-item" style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.06)">
           <a class="nav-link" href="https://cloud.safelaneeld.com/c/616b9deb-04ec-486c-ac55-191d6f9ffe85/l" target="_blank" rel="noopener">
             <i class="bi bi-broadcast me-2"></i>ELD Portal <i class="bi bi-box-arrow-up-right ms-1 small" style="opacity:.5"></i>
           </a>
@@ -179,12 +184,56 @@ const App = (() => {
         if (typeof onReady === 'function') onReady();
       });
 
+      // ── Restore saved appearance settings ───────────────
+      _restoreAppearance();
+
       // Initial data load
       if (typeof onReady === 'function') onReady();
     });
   }
 
   // ── Small utilities ───────────────────────────────────────
+
+  /**
+   * Restore saved theme, accent color, and logo from localStorage.
+   * Called on every page init so settings persist across navigation.
+   */
+  function _restoreAppearance() {
+    // Theme (light / dark)
+    const savedTheme = localStorage.getItem('nd_theme');
+    if (savedTheme === 'dark') {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+    }
+
+    // Accent color preset
+    const presetJson = localStorage.getItem('nd_accent_preset');
+    if (presetJson) {
+      try {
+        const p = JSON.parse(presetJson);
+        const root = document.documentElement;
+        root.style.setProperty('--nd-primary',   p.primary);
+        root.style.setProperty('--nd-secondary', p.secondary);
+        root.style.setProperty('--nd-accent',    p.accent);
+        root.style.setProperty('--nd-light',     p.light);
+        root.style.setProperty('--nd-dark',      p.dark);
+      } catch (_) { /* ignore corrupt data */ }
+    }
+
+    // Company logo
+    const savedLogo = localStorage.getItem('nd_logo');
+    if (savedLogo) {
+      const brand = document.querySelector('.sidebar-brand');
+      if (brand) {
+        const iconDiv = brand.querySelector('div');
+        if (iconDiv) {
+          iconDiv.innerHTML = `<img src="${savedLogo}" alt="Logo" style="width:100%;height:100%;object-fit:contain;border-radius:8px">`;
+        }
+      }
+    }
+  }
+
   function $(selector) {
     return document.querySelector(selector);
   }
