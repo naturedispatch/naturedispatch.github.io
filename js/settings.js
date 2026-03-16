@@ -48,11 +48,7 @@ const Settings = (() => {
               </a>
               <hr style="margin:8px 0;opacity:.1">
               <a class="nav-link disabled" href="#" style="opacity:.4">
-                <i class="bi bi-robot me-2"></i>AI Assistant
-                <span class="badge bg-secondary ms-auto" style="font-size:.65rem">Soon</span>
-              </a>
-              <a class="nav-link disabled" href="#" style="opacity:.4">
-                <i class="bi bi-people me-2"></i>Users
+                <i class="bi bi-robot me-2"></i>AI futures
                 <span class="badge bg-secondary ms-auto" style="font-size:.65rem">Soon</span>
               </a>
               <a class="nav-link disabled" href="#" style="opacity:.4">
