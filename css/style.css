@@ -1038,6 +1038,90 @@ html { scroll-behavior: smooth; }
 }
 
 /* ============================================================
+   DOCUMENT UPLOAD BOXES
+   ============================================================ */
+.doc-upload-box {
+  border: 2px dashed #e2e8f0;
+  border-radius: var(--nd-radius-sm);
+  padding: 16px 12px;
+  text-align: center;
+  cursor: pointer;
+  transition: all var(--nd-transition);
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.doc-upload-box:hover {
+  border-color: var(--nd-accent);
+  background: rgba(82,183,136,.04);
+  transform: translateY(-2px);
+}
+.doc-upload-box.has-file {
+  border-color: #3b82f6;
+  border-style: solid;
+  background: rgba(59,130,246,.04);
+}
+.doc-upload-box.has-doc {
+  border-color: var(--nd-accent);
+  border-style: solid;
+  background: rgba(82,183,136,.04);
+}
+.doc-upload-icon {
+  font-size: 1.5rem;
+  color: #94a3b8;
+  margin-bottom: 4px;
+}
+.doc-upload-label {
+  font-size: .8rem;
+  font-weight: 700;
+  color: var(--nd-dark);
+}
+.doc-upload-hint {
+  font-size: .68rem;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+.doc-upload-filename {
+  font-size: .7rem;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  margin-top: 2px;
+}
+.btn-xs {
+  padding: 2px 8px;
+  font-size: .7rem;
+  border-radius: 6px;
+}
+
+/* Dark theme */
+[data-theme="dark"] .doc-upload-box {
+  border-color: #334155;
+}
+[data-theme="dark"] .doc-upload-box:hover {
+  border-color: var(--nd-accent);
+  background: rgba(82,183,136,.08);
+}
+[data-theme="dark"] .doc-upload-box.has-file {
+  border-color: #3b82f6;
+  background: rgba(59,130,246,.08);
+}
+[data-theme="dark"] .doc-upload-box.has-doc {
+  border-color: var(--nd-accent);
+  background: rgba(82,183,136,.08);
+}
+[data-theme="dark"] .doc-upload-label {
+  color: #f1f5f9;
+}
+[data-theme="dark"] .doc-upload-filename {
+  color: #94a3b8;
+}
+
+/* ============================================================
    PIPELINE / KANBAN BOARD
    ============================================================ */
 .pipeline-board {

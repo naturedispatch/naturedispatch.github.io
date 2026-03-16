@@ -93,12 +93,12 @@ function docCount(f) {
   return (f['Rate Con PDF']?.length > 0 ? 1 : 0) + (f['BOL PDF']?.length > 0 ? 1 : 0) + (f['Invoice PDF']?.length > 0 ? 1 : 0);
 }
 
-function docIcon(files) {
+function docIcon(files, recordId, fieldName) {
   if (files && files.length > 0) {
     const url = files[0].url;
     return `<a href="${url}" target="_blank" class="text-success" title="View document"><i class="bi bi-check-circle-fill fs-5"></i></a>`;
   }
-  return '<span class="text-danger"><i class="bi bi-x-circle fs-5"></i></span>';
+  return `<button class="btn btn-link p-0 text-danger border-0" title="Click to upload" onclick="uploadDocDirect('${recordId}','${fieldName}')"><i class="bi bi-cloud-arrow-up fs-5"></i></button>`;
 }
 
 function docRow(rec) {
@@ -111,12 +111,32 @@ function docRow(rec) {
   <tr data-docs="${count}">
     <td class="fw-semibold">${f['Load Number'] || '—'}</td>
     <td>${App.statusBadge(f['Status'])}</td>
-    <td class="text-center">${docIcon(f['Rate Con PDF'])}</td>
-    <td class="text-center">${docIcon(f['BOL PDF'])}</td>
-    <td class="text-center">${docIcon(f['Invoice PDF'])}</td>
+    <td class="text-center">${docIcon(f['Rate Con PDF'], rec.id, 'Rate Con PDF')}</td>
+    <td class="text-center">${docIcon(f['BOL PDF'], rec.id, 'BOL PDF')}</td>
+    <td class="text-center">${docIcon(f['Invoice PDF'], rec.id, 'Invoice PDF')}</td>
     <td class="text-center"><span class="badge ${scoreCls}">${count}/3</span></td>
     <td><span class="badge ${invMap[f['Invoice Status']] || 'bg-secondary'}">${f['Invoice Status'] || '—'}</span></td>
   </tr>`;
+}
+
+// ── Direct upload from documents page ───────────────────────
+function uploadDocDirect(recordId, fieldName) {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.pdf,.png,.jpg,.jpeg,.doc,.docx';
+  input.onchange = async () => {
+    const file = input.files[0];
+    if (!file) return;
+    App.showToast(`Uploading ${fieldName}…`, 'info');
+    try {
+      await Airtable.uploadAttachment(recordId, fieldName, file);
+      App.showToast(`${fieldName} uploaded!`, 'success');
+      loadDocumentsPage();
+    } catch (err) {
+      App.showToast('Upload failed: ' + err.message, 'danger');
+    }
+  };
+  input.click();
 }
 
 // ── Client-side filter ──────────────────────────────────────

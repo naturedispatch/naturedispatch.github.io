@@ -110,6 +110,27 @@ const Airtable = (() => {
     return res.json();
   }
 
+  /**
+   * Upload a file attachment directly to a record field.
+   * Uses the Airtable Content Upload API.
+   * @param {string} recordId  – Airtable record ID
+   * @param {string} fieldName – Attachment field name (e.g. 'Rate Con PDF')
+   * @param {File}   file      – File object from <input type="file">
+   */
+  async function uploadAttachment(recordId, fieldName, file) {
+    const url = `${CONFIG.CONTENT_URL}/${recordId}/${encodeURIComponent(fieldName)}/uploadAttachment`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${CONFIG.AIRTABLE_API_KEY}`,
+        'Content-Type': file.type || 'application/octet-stream',
+      },
+      body: file,
+    });
+    if (!res.ok) await _handleError(res, 'Upload failed');
+    return res.json();
+  }
+
   // ── Public API ────────────────────────────────────────────
-  return { getAll, getOne, create, update, remove };
+  return { getAll, getOne, create, update, remove, uploadAttachment };
 })();

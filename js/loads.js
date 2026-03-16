@@ -10,6 +10,13 @@ App.init('Loads', loadLoadsPage);
 // Cache for dropdowns so we don't re-fetch on every render
 let _companies = [], _brokers = [], _drivers = [], _trucks = [];
 
+// Document field definitions for upload boxes
+const DOC_FIELDS = [
+  { inputId: 'fileRateCon', contentId: 'docRateCon', boxId: 'boxRateCon', field: 'Rate Con PDF', label: 'Rate Con' },
+  { inputId: 'fileBOL',     contentId: 'docBOL',     boxId: 'boxBOL',     field: 'BOL PDF',     label: 'BOL' },
+  { inputId: 'fileInvoice', contentId: 'docInvoice', boxId: 'boxInvoice', field: 'Invoice PDF', label: 'Invoice' },
+];
+
 async function loadLoadsPage() {
   const body = document.getElementById('pageBody');
 
@@ -159,8 +166,7 @@ function openNewLoad() {
   document.getElementById('loadModalTitle').textContent = 'New Load';
   document.getElementById('loadForm').reset();
   document.getElementById('loadRecordId').value = '';
-  const indicator = document.getElementById('loadDocsIndicator');
-  if (indicator) indicator.innerHTML = '<i class="bi bi-file-earmark me-1"></i>Save load first, then upload docs in Airtable';
+  resetDocBoxes();
   new bootstrap.Modal(document.getElementById('loadModal')).show();
 }
 
@@ -190,19 +196,17 @@ async function openEditLoad(recordId) {
     setSelectValue('loadDriver',  f['Driver']);
     setSelectValue('loadTruck',   f['Truck']);
 
-    // Document indicator
-    const indicator = document.getElementById('loadDocsIndicator');
-    if (indicator) {
-      const hasRateCon = f['Rate Con PDF'] && f['Rate Con PDF'].length > 0;
-      const hasBOL     = f['BOL PDF'] && f['BOL PDF'].length > 0;
-      const hasInvoice = f['Invoice PDF'] && f['Invoice PDF'].length > 0;
-      indicator.innerHTML = `
-        <span class="${hasRateCon ? 'text-success' : 'text-danger'}"><i class="bi bi-${hasRateCon ? 'check' : 'x'}-circle me-1"></i>Rate Con</span>
-        <span class="mx-1">|</span>
-        <span class="${hasBOL ? 'text-success' : 'text-danger'}"><i class="bi bi-${hasBOL ? 'check' : 'x'}-circle me-1"></i>BOL</span>
-        <span class="mx-1">|</span>
-        <span class="${hasInvoice ? 'text-success' : 'text-danger'}"><i class="bi bi-${hasInvoice ? 'check' : 'x'}-circle me-1"></i>Invoice</span>`;
-    }
+    // Render document upload boxes
+    DOC_FIELDS.forEach(d => {
+      const att = f[d.field];
+      const input = document.getElementById(d.inputId);
+      if (input) input.value = '';
+      if (att && att.length > 0) {
+        setDocBoxExisting(d.contentId, d.boxId, d.label, att[0]);
+      } else {
+        setDocBoxEmpty(d.contentId, d.boxId, d.inputId, d.label);
+      }
+    });
 
     new bootstrap.Modal(document.getElementById('loadModal')).show();
   } catch (err) {
@@ -227,8 +231,8 @@ function setSelectValue(id, linkedIds) {
 
 // ── SAVE (Create or Update) ─────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('saveLoadBtn').addEventListener('click', saveLoad);
-});
+  document.getElementById('saveLoadBtn').addEventListener('click', saveLoad);  document.getElementById('addStopBtn').addEventListener('click', addStop);
+  initDocBoxes();});
 
 async function saveLoad() {
   const btn = document.getElementById('saveLoadBtn');
@@ -267,13 +271,19 @@ async function saveLoad() {
   }
 
   await App.withLoading(btn, async () => {
+    let savedId;
     if (recordId) {
       await Airtable.update(CONFIG.TABLES.LOADS, recordId, fields);
-      App.showToast('Load updated!');
+      savedId = recordId;
     } else {
-      await Airtable.create(CONFIG.TABLES.LOADS, fields);
-      App.showToast('Load created!');
+      const created = await Airtable.create(CONFIG.TABLES.LOADS, fields);
+      savedId = created.id;
     }
+
+    // Upload any pending document files
+    await uploadPendingDocs(savedId);
+
+    App.showToast(recordId ? 'Load updated!' : 'Load created!');
     bootstrap.Modal.getInstance(document.getElementById('loadModal')).hide();
     loadLoadsPage();
   });
@@ -288,6 +298,87 @@ async function deleteLoad(recordId) {
     loadLoadsPage();
   } catch (err) {
     App.showToast('Delete failed: ' + err.message, 'danger');
+  }
+}
+
+// ── DOCUMENT UPLOAD HELPERS ───────────────────────────────
+
+function initDocBoxes() {
+  DOC_FIELDS.forEach(({ inputId, boxId, contentId, label }) => {
+    const box = document.getElementById(boxId);
+    const input = document.getElementById(inputId);
+    if (!box || !input) return;
+
+    // Click on box → trigger file input (unless clicking a link)
+    box.addEventListener('click', (e) => {
+      if (e.target.closest('a')) return;
+      input.click();
+    });
+
+    // When file is selected → update display
+    input.addEventListener('change', () => {
+      if (input.files[0]) {
+        setDocBoxPending(contentId, boxId, label, input.files[0].name);
+      }
+    });
+  });
+}
+
+function resetDocBoxes() {
+  DOC_FIELDS.forEach(d => setDocBoxEmpty(d.contentId, d.boxId, d.inputId, d.label));
+}
+
+function setDocBoxEmpty(contentId, boxId, inputId, label) {
+  const content = document.getElementById(contentId);
+  const box = document.getElementById(boxId);
+  const input = document.getElementById(inputId);
+  if (!content || !box) return;
+  box.className = 'doc-upload-box';
+  content.innerHTML = `
+    <i class="bi bi-cloud-arrow-up doc-upload-icon"></i>
+    <div class="doc-upload-label">${label}</div>
+    <div class="doc-upload-hint">Click to upload</div>`;
+  if (input) input.value = '';
+}
+
+function setDocBoxExisting(contentId, boxId, label, attachment) {
+  const content = document.getElementById(contentId);
+  const box = document.getElementById(boxId);
+  if (!content || !box) return;
+  box.className = 'doc-upload-box has-doc';
+  const fname = attachment.filename || 'Document';
+  content.innerHTML = `
+    <i class="bi bi-file-earmark-check doc-upload-icon text-success"></i>
+    <div class="doc-upload-label">${label}</div>
+    <div class="doc-upload-filename" title="${fname}">${fname}</div>
+    <div class="d-flex gap-1 mt-2 justify-content-center">
+      <a href="${attachment.url}" target="_blank" class="btn btn-xs btn-outline-success"><i class="bi bi-eye me-1"></i>View</a>
+    </div>
+    <div class="doc-upload-hint mt-1">Click to replace</div>`;
+}
+
+function setDocBoxPending(contentId, boxId, label, filename) {
+  const content = document.getElementById(contentId);
+  const box = document.getElementById(boxId);
+  if (!content || !box) return;
+  box.className = 'doc-upload-box has-file';
+  content.innerHTML = `
+    <i class="bi bi-file-earmark-arrow-up doc-upload-icon text-primary"></i>
+    <div class="doc-upload-label">${label}</div>
+    <div class="doc-upload-filename" title="${filename}">${filename}</div>
+    <div class="doc-upload-hint text-primary">Will upload on save</div>`;
+}
+
+async function uploadPendingDocs(recordId) {
+  for (const { inputId, field, label } of DOC_FIELDS) {
+    const input = document.getElementById(inputId);
+    if (input?.files?.[0]) {
+      try {
+        await Airtable.uploadAttachment(recordId, field, input.files[0]);
+      } catch (err) {
+        App.showToast(`Failed to upload ${label}: ${err.message}`, 'warning');
+      }
+    }
   }
 }
 
@@ -345,10 +436,6 @@ function renderStops(stops) {
       </table>
     </div>`;
 }
-
-document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('addStopBtn').addEventListener('click', addStop);
-});
 
 async function addStop() {
   const body = document.getElementById('stopsBody');
