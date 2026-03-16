@@ -117,8 +117,8 @@ const Airtable = (() => {
    * @param {string} fieldName – Attachment field name (e.g. 'Rate Con PDF')
    * @param {File}   file      – File object from <input type="file">
    */
-  async function uploadAttachment(recordId, fieldName, file) {
-    const url = `${CONFIG.CONTENT_URL}/${recordId}/${encodeURIComponent(fieldName)}/uploadAttachment`;
+  async function uploadAttachment(tableName, recordId, fieldName, file) {
+    const url = `${CONFIG.CONTENT_URL}/${encodeURIComponent(tableName)}/${recordId}/${encodeURIComponent(fieldName)}/uploadAttachment`;
     const res = await fetch(url, {
       method: 'POST',
       headers: {

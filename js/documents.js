@@ -129,7 +129,7 @@ function uploadDocDirect(recordId, fieldName) {
     if (!file) return;
     App.showToast(`Uploading ${fieldName}…`, 'info');
     try {
-      await Airtable.uploadAttachment(recordId, fieldName, file);
+      await Airtable.uploadAttachment(CONFIG.TABLES.LOADS, recordId, fieldName, file);
       App.showToast(`${fieldName} uploaded!`, 'success');
       loadDocumentsPage();
     } catch (err) {

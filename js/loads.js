@@ -374,7 +374,7 @@ async function uploadPendingDocs(recordId) {
     const input = document.getElementById(inputId);
     if (input?.files?.[0]) {
       try {
-        await Airtable.uploadAttachment(recordId, field, input.files[0]);
+        await Airtable.uploadAttachment(CONFIG.TABLES.LOADS, recordId, field, input.files[0]);
       } catch (err) {
         App.showToast(`Failed to upload ${label}: ${err.message}`, 'warning');
       }
