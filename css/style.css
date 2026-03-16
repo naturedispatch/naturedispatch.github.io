@@ -1330,3 +1330,127 @@ html { scroll-behavior: smooth; }
 [data-theme="dark"] .table-warning {
   background: rgba(245,158,11,.08) !important;
 }
+
+/* ============================================================
+   LOGIN PAGE
+   ============================================================ */
+.login-body {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f0fdf4 0%, #e0f2fe 50%, #f0fdf4 100%);
+  font-family: 'Inter', sans-serif;
+  padding: 20px;
+}
+.login-container {
+  width: 100%;
+  max-width: 420px;
+}
+.login-logo {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--nd-accent), var(--nd-secondary));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 30px rgba(82,183,136,.3);
+}
+.login-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 28px;
+  box-shadow: 0 4px 24px rgba(0,0,0,.06);
+  border: 1.5px solid #e2e8f0;
+}
+.login-card .input-group-text {
+  background: #f8fafb;
+  border-right: none;
+  color: #94a3b8;
+}
+.login-card .form-control {
+  border-left: none;
+}
+.login-card .form-control:focus {
+  box-shadow: none;
+  border-color: #dee2e6;
+}
+
+/* ============================================================
+   USER AVATARS
+   ============================================================ */
+.user-avatar-sm {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--nd-accent), var(--nd-secondary));
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: .8rem;
+  flex-shrink: 0;
+}
+.user-avatar-topbar {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--nd-accent), var(--nd-secondary));
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: .75rem;
+  flex-shrink: 0;
+}
+
+/* ── Permission checkboxes ─────────────────────────────── */
+.perm-check {
+  background: #f8fafb;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px 10px 8px 34px;
+  transition: all .15s ease;
+}
+.perm-check:hover {
+  border-color: var(--nd-accent);
+  background: rgba(82,183,136,.04);
+}
+.perm-check .form-check-input:checked ~ .form-check-label {
+  color: var(--nd-secondary);
+  font-weight: 600;
+}
+.perm-check .form-check-label {
+  font-size: .78rem;
+  cursor: pointer;
+}
+
+/* ── Dark theme: login & users ─────────────────────────── */
+[data-theme="dark"] .login-body {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+}
+[data-theme="dark"] .login-card {
+  background: #1e293b;
+  border-color: #334155;
+}
+[data-theme="dark"] .login-card .input-group-text {
+  background: #334155;
+  border-color: #475569;
+  color: #94a3b8;
+}
+[data-theme="dark"] .login-card .form-control {
+  background: #1e293b;
+  border-color: #475569;
+  color: #f1f5f9;
+}
+[data-theme="dark"] .perm-check {
+  background: #1e293b;
+  border-color: #334155;
+}
+[data-theme="dark"] .perm-check:hover {
+  border-color: var(--nd-accent);
+  background: rgba(82,183,136,.08);
+}

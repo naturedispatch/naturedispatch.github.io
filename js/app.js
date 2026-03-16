@@ -38,20 +38,24 @@ const App = (() => {
   function renderSidebar() {
     const page = location.pathname.split('/').pop() || 'index.html';
     const links = [
-      { href: 'index.html',       icon: 'bi-speedometer2',    label: 'Dashboard' },
-      { href: 'loads.html',       icon: 'bi-box-seam',        label: 'Loads' },
-      { href: 'pipeline.html',   icon: 'bi-kanban',          label: 'Pipeline' },
-      { href: 'drivers.html',     icon: 'bi-person-badge',    label: 'Drivers' },
-      { href: 'trucks.html',      icon: 'bi-truck',           label: 'Trucks & Trailers' },
-      { href: 'brokers.html',     icon: 'bi-building',        label: 'Brokers' },
-      { href: 'documents.html',   icon: 'bi-file-earmark-check', label: 'Documents' },
-      { href: 'settlements.html', icon: 'bi-calculator',      label: 'Settlements' },
-      { href: 'expenses.html',    icon: 'bi-receipt',         label: 'Expenses' },
-      { href: 'alerts.html',      icon: 'bi-bell',            label: 'Alerts' },
-      { href: 'reports.html',    icon: 'bi-graph-up',        label: 'Reports' },
+      { href: 'index.html',       icon: 'bi-speedometer2',    label: 'Dashboard',          key: 'dashboard' },
+      { href: 'loads.html',       icon: 'bi-box-seam',        label: 'Loads',              key: 'loads' },
+      { href: 'pipeline.html',   icon: 'bi-kanban',          label: 'Pipeline',           key: 'pipeline' },
+      { href: 'drivers.html',     icon: 'bi-person-badge',    label: 'Drivers',            key: 'drivers' },
+      { href: 'trucks.html',      icon: 'bi-truck',           label: 'Trucks & Trailers',  key: 'trucks' },
+      { href: 'brokers.html',     icon: 'bi-building',        label: 'Brokers',            key: 'brokers' },
+      { href: 'documents.html',   icon: 'bi-file-earmark-check', label: 'Documents',       key: 'documents' },
+      { href: 'settlements.html', icon: 'bi-calculator',      label: 'Settlements',        key: 'settlements' },
+      { href: 'expenses.html',    icon: 'bi-receipt',         label: 'Expenses',           key: 'expenses' },
+      { href: 'alerts.html',      icon: 'bi-bell',            label: 'Alerts',             key: 'alerts' },
+      { href: 'reports.html',    icon: 'bi-graph-up',        label: 'Reports',            key: 'reports' },
     ];
 
-    const nav = links
+    // Filter by user permissions (Auth global from auth.js)
+    const _hasPerm = (key) => typeof Auth !== 'undefined' && Auth.hasPermission ? Auth.hasPermission(key) : true;
+    const visibleLinks = links.filter(l => _hasPerm(l.key));
+
+    const nav = visibleLinks
       .map(
         (l) => `
       <li class="nav-item">
@@ -61,6 +65,21 @@ const App = (() => {
       </li>`
       )
       .join('');
+
+    // Settings & Users links (permission-gated)
+    const settingsLink = _hasPerm('settings') ? `
+        <li class="nav-item" style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.06)">
+          <a class="nav-link${page === 'settings.html' ? ' active' : ''}" href="settings.html">
+            <i class="bi bi-gear me-2"></i>Settings
+          </a>
+        </li>` : '';
+
+    const usersLink = _hasPerm('users') ? `
+        <li class="nav-item">
+          <a class="nav-link${page === 'users.html' ? ' active' : ''}" href="users.html">
+            <i class="bi bi-people me-2"></i>Users
+          </a>
+        </li>` : '';
 
     return `
     <div class="sidebar p-3">
@@ -72,11 +91,8 @@ const App = (() => {
       </a>
       <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:1.2px;color:rgba(255,255,255,.25);font-weight:700;padding:0 14px;margin-bottom:8px">Menu</div>
       <ul class="nav nav-pills flex-column mb-auto">${nav}
-        <li class="nav-item" style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.06)">
-          <a class="nav-link${page === 'settings.html' ? ' active' : ''}" href="settings.html">
-            <i class="bi bi-gear me-2"></i>Settings
-          </a>
-        </li>
+        ${settingsLink}
+        ${usersLink}
         <li class="nav-item" style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.06)">
           <a class="nav-link" href="https://cloud.safelaneeld.com/c/616b9deb-04ec-486c-ac55-191d6f9ffe85/l" target="_blank" rel="noopener">
             <i class="bi bi-broadcast me-2"></i>ELD Portal <i class="bi bi-box-arrow-up-right ms-1 small" style="opacity:.5"></i>
@@ -127,6 +143,17 @@ const App = (() => {
             ${opts}
           </select>
         </div>
+        ${typeof Auth !== 'undefined' && Auth.user ? `
+        <div class="d-flex align-items-center gap-2">
+          <div class="user-avatar-topbar" title="${Auth.user.name}">${(Auth.user.name || '?')[0].toUpperCase()}</div>
+          <div class="d-none d-md-block" style="line-height:1.2">
+            <div style="font-size:.78rem;font-weight:600">${Auth.user.name}</div>
+            <div style="font-size:.65rem;color:#94a3b8">${Auth.user.role}</div>
+          </div>
+          <button class="btn btn-sm btn-outline-secondary ms-1" onclick="Auth.logout()" title="Sign out" style="border-radius:8px;padding:3px 8px">
+            <i class="bi bi-box-arrow-right"></i>
+          </button>
+        </div>` : ''}
       </div>
     </div>`;
   }
