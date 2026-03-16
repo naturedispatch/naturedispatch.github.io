@@ -113,21 +113,30 @@ const Airtable = (() => {
   /**
    * Upload a file attachment directly to a record field.
    * Uses the Airtable Content Upload API.
+   * @param {string} tableName – Table name (kept for potential fallback)
    * @param {string} recordId  – Airtable record ID
    * @param {string} fieldName – Attachment field name (e.g. 'Rate Con PDF')
    * @param {File}   file      – File object from <input type="file">
    */
   async function uploadAttachment(tableName, recordId, fieldName, file) {
-    const url = `${CONFIG.CONTENT_URL}/${encodeURIComponent(tableName)}/${recordId}/${encodeURIComponent(fieldName)}/uploadAttachment`;
+    // Content Upload API format: /v0/{baseId}/{recordId}/{fieldIdOrName}/uploadAttachment
+    const url = `${CONFIG.CONTENT_URL}/${recordId}/${encodeURIComponent(fieldName)}/uploadAttachment`;
+    const buffer = await file.arrayBuffer();
     const res = await fetch(url, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${CONFIG.AIRTABLE_API_KEY}`,
         'Content-Type': file.type || 'application/octet-stream',
       },
-      body: file,
+      body: buffer,
     });
-    if (!res.ok) await _handleError(res, 'Upload failed');
+    if (!res.ok) {
+      // Log detailed error for debugging
+      let detail = '';
+      try { const b = await res.clone().json(); detail = JSON.stringify(b); } catch(e) {}
+      console.error('Airtable Content Upload error:', res.status, detail);
+      await _handleError(res, 'Upload failed');
+    }
     return res.json();
   }
 
