@@ -111,32 +111,42 @@ const Airtable = (() => {
   }
 
   /**
-   * Upload a file attachment directly to a record field.
-   * Uses the Airtable Content Upload API.
-   * @param {string} tableName – Table name (kept for potential fallback)
+   * Upload a file attachment to a record field.
+   * Uploads file to temporary hosting, then attaches via regular Airtable API.
+   * @param {string} tableName – Table name from CONFIG.TABLES
    * @param {string} recordId  – Airtable record ID
    * @param {string} fieldName – Attachment field name (e.g. 'Rate Con PDF')
    * @param {File}   file      – File object from <input type="file">
    */
   async function uploadAttachment(tableName, recordId, fieldName, file) {
-    // Content Upload API format: /v0/{baseId}/{recordId}/{fieldIdOrName}/uploadAttachment
-    const url = `${CONFIG.CONTENT_URL}/${recordId}/${encodeURIComponent(fieldName)}/uploadAttachment`;
-    const buffer = await file.arrayBuffer();
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${CONFIG.AIRTABLE_API_KEY}`,
-        'Content-Type': file.type || 'application/octet-stream',
-      },
-      body: buffer,
-    });
-    if (!res.ok) {
-      // Log detailed error for debugging
-      let detail = '';
-      try { const b = await res.clone().json(); detail = JSON.stringify(b); } catch(e) {}
-      console.error('Airtable Content Upload error:', res.status, detail);
-      await _handleError(res, 'Upload failed');
+    // Step 1 — Upload to temporary hosting to get a public URL
+    let publicUrl;
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const hostRes = await fetch('https://tmpfiles.org/api/v1/upload', {
+        method: 'POST',
+        body: fd,
+      });
+      const hostData = await hostRes.json();
+      if (hostData.status !== 'success' || !hostData.data?.url) {
+        throw new Error(hostData.message || 'Unexpected response');
+      }
+      // Convert to direct-download link
+      publicUrl = hostData.data.url.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
+    } catch (hostErr) {
+      throw new Error('File hosting failed: ' + hostErr.message);
     }
+
+    // Step 2 — Attach the hosted URL to the Airtable record
+    const res = await fetch(_url(tableName, recordId), {
+      method: 'PATCH',
+      headers: _headers(),
+      body: JSON.stringify({
+        fields: { [fieldName]: [{ url: publicUrl, filename: file.name }] }
+      }),
+    });
+    if (!res.ok) await _handleError(res, 'Attachment failed');
     return res.json();
   }
 

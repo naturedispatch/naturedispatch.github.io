@@ -43,8 +43,4 @@ const CONFIG = {
   get API_URL() {
     return `https://api.airtable.com/v0/${this.AIRTABLE_BASE_ID}`;
   },
-
-  get CONTENT_URL() {
-    return `https://content.airtable.com/v0/${this.AIRTABLE_BASE_ID}`;
-  },
 };
