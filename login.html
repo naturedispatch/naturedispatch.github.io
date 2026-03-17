@@ -8,8 +8,12 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link href="css/style.css" rel="stylesheet">
+  <link href="css/nd-effects.css" rel="stylesheet">
 </head>
 <body class="login-body">
+
+  <!-- Animated Three.js Tubes Background (inspired by Tubes Cursor Animation example) -->
+  <canvas id="loginCanvas"></canvas>
 
   <div class="login-container">
     <!-- Brand -->
@@ -79,5 +83,23 @@
   <script src="js/config.js"></script>
   <script src="js/airtable.js"></script>
   <script src="js/login.js"></script>
+  <!-- Tubes Background Animation -->
+  <script type="module">
+    import TubesCursor from "https://cdn.jsdelivr.net/npm/threejs-components@0.0.19/build/cursors/tubes1.min.js";
+    try {
+      const canvas = document.getElementById('loginCanvas');
+      if (canvas) {
+        const app = TubesCursor(canvas, {
+          tubes: {
+            colors: ["#52b788", "#2d6a4f", "#1b4332"],
+            lights: {
+              intensity: 150,
+              colors: ["#6ee7b7", "#34d399", "#52b788", "#2d6a4f"]
+            }
+          }
+        });
+      }
+    } catch(e) { console.warn('Tubes animation unavailable:', e); }
+  </script>
 </body>
 </html>

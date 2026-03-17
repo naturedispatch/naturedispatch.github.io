@@ -1,0 +1,646 @@
+/* ============================================================
+   NATURE DISPATCH TMS — Visual Effects Layer
+   Inspired by: Electric Border, Active Navbar, Tubes Cursor,
+                Order Button Animation, Car Slider
+   ============================================================ */
+
+/* ── Enhanced CSS Variables ─────────────────────────────── */
+:root {
+  --nd-glow:        rgba(82, 183, 136, .5);
+  --nd-glow-strong: rgba(82, 183, 136, .8);
+  --nd-electric:    #52b788;
+  --nd-neon:        #6ee7b7;
+  --nd-neon-dim:    rgba(110, 231, 183, .15);
+  --nd-neon-glow:   0 0 8px rgba(110, 231, 183, .4), 0 0 20px rgba(82, 183, 136, .2);
+}
+
+[data-theme="dark"] {
+  --nd-glow:        rgba(110, 231, 183, .45);
+  --nd-glow-strong: rgba(110, 231, 183, .7);
+}
+
+/* ── Additional Keyframes ───────────────────────────────── */
+@keyframes electricPulse {
+  0%, 100% { opacity: .6; filter: blur(4px); }
+  50%      { opacity: 1; filter: blur(6px); }
+}
+
+@keyframes borderGlow {
+  0%, 100% { box-shadow: 0 0 5px var(--nd-glow), inset 0 0 5px transparent; }
+  50%      { box-shadow: 0 0 15px var(--nd-glow), 0 0 30px rgba(82,183,136,.15), inset 0 0 5px transparent; }
+}
+
+@keyframes slideGlow {
+  0%   { left: -30%; }
+  100% { left: 130%; }
+}
+
+@keyframes floatUp {
+  from { opacity: 0; transform: translateY(30px) scale(.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes neonFlicker {
+  0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% { text-shadow: 0 0 4px var(--nd-neon), 0 0 11px var(--nd-neon), 0 0 19px var(--nd-neon); }
+  20%, 24%, 55% { text-shadow: none; }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes gradientShift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes glowTrail {
+  0%   { transform: translateX(-100%); opacity: 0; }
+  50%  { opacity: 1; }
+  100% { transform: translateX(100%); opacity: 0; }
+}
+
+/* ── Sidebar: Neon Electric Enhancements ────────────────── */
+.sidebar {
+  background: linear-gradient(180deg, #060f0a 0%, #0a1f14 30%, #0d2818 60%, #081c10 100%);
+  border-right: 1px solid rgba(82, 183, 136, .1);
+}
+
+/* Subtle animated gradient on sidebar */
+.sidebar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(ellipse at 20% 50%, rgba(82, 183, 136, .03) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.sidebar > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Nav link electric hover */
+.sidebar .nav-link {
+  transition: all .3s cubic-bezier(.4,0,.2,1);
+  border: 1px solid transparent;
+}
+
+.sidebar .nav-link::before {
+  background: var(--nd-electric);
+  box-shadow: 0 0 6px var(--nd-glow), 0 0 12px rgba(82,183,136,.2);
+  transition: all .3s cubic-bezier(.4,0,.2,1);
+}
+
+.sidebar .nav-link:hover {
+  background: rgba(82,183,136,.06);
+  border-color: rgba(82,183,136,.08);
+}
+
+/* Active nav link: electric glow */
+.sidebar .nav-link.active {
+  background: linear-gradient(135deg, rgba(82,183,136,.12) 0%, rgba(45,106,79,.08) 100%);
+  border: 1px solid rgba(82,183,136,.15);
+  box-shadow: 0 0 12px rgba(82,183,136,.08), inset 0 0 12px rgba(82,183,136,.03);
+}
+
+.sidebar .nav-link.active::before {
+  width: 3px;
+  box-shadow: 0 0 8px var(--nd-glow-strong), 0 0 16px var(--nd-glow);
+  animation: electricPulse 2s ease-in-out infinite;
+}
+
+.sidebar .nav-link.active i {
+  color: var(--nd-neon);
+  filter: drop-shadow(0 0 4px rgba(110,231,183,.4));
+}
+
+/* Sidebar brand glow */
+.sidebar-brand > div:first-child {
+  box-shadow: 0 2px 10px rgba(82,183,136,.3), 0 0 20px rgba(82,183,136,.15);
+  transition: all .3s ease;
+}
+
+.sidebar-brand:hover > div:first-child {
+  box-shadow: 0 2px 12px rgba(82,183,136,.4), 0 0 30px rgba(82,183,136,.25);
+  transform: scale(1.05);
+}
+
+.sidebar-brand span {
+  transition: text-shadow .3s ease;
+}
+
+.sidebar-brand:hover span {
+  text-shadow: 0 0 12px rgba(82,183,136,.3);
+}
+
+/* ── Topbar: Glassmorphism Enhancement ──────────────────── */
+.topbar {
+  background: rgba(255,255,255,.78);
+  backdrop-filter: blur(20px) saturate(200%);
+  -webkit-backdrop-filter: blur(20px) saturate(200%);
+  border-bottom: 1px solid rgba(82,183,136,.08);
+}
+
+[data-theme="dark"] .topbar {
+  background: rgba(15,23,42,.85);
+  border-bottom-color: rgba(82,183,136,.1);
+}
+
+/* ── Stat Cards: Electric Border & Glow ─────────────────── */
+.stat-card {
+  border: 1px solid rgba(0,0,0,.04);
+  transition: all .4s cubic-bezier(.4,0,.2,1);
+  position: relative;
+  overflow: hidden;
+  animation: floatUp .6s ease both;
+}
+
+/* Animated shine sweep on hover */
+.stat-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -30%;
+  width: 30%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(82,183,136,.06), transparent);
+  transform: skewX(-15deg);
+  transition: none;
+  pointer-events: none;
+}
+
+.stat-card:hover::after {
+  animation: slideGlow .7s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 8px 30px rgba(82,183,136,.12), 0 0 0 1px rgba(82,183,136,.1);
+  border-color: rgba(82,183,136,.15);
+}
+
+.stat-card:hover::before {
+  opacity: 1;
+  background: linear-gradient(90deg, var(--nd-electric), var(--nd-neon), var(--nd-electric));
+  background-size: 200% 100%;
+  animation: gradientShift 2s linear infinite;
+}
+
+[data-theme="dark"] .stat-card {
+  border-color: rgba(82,183,136,.06);
+}
+
+[data-theme="dark"] .stat-card:hover {
+  box-shadow: 0 8px 30px rgba(82,183,136,.08), 0 0 20px rgba(82,183,136,.05);
+  border-color: rgba(82,183,136,.2);
+}
+
+/* Stat icon glow on hover */
+.stat-card:hover .stat-icon {
+  transform: scale(1.12) rotate(-5deg);
+  box-shadow: 0 0 16px rgba(82,183,136,.2);
+}
+
+/* ── Table: Enhanced Hover ──────────────────────────────── */
+.table-container {
+  border: 1px solid rgba(0,0,0,.04);
+  transition: box-shadow .3s ease;
+}
+
+.table-container:hover {
+  box-shadow: 0 4px 30px rgba(0,0,0,.06);
+}
+
+[data-theme="dark"] .table-container:hover {
+  box-shadow: 0 4px 30px rgba(0,0,0,.3);
+}
+
+.table tbody tr {
+  transition: all .25s ease;
+}
+
+.table tbody tr:hover {
+  background: linear-gradient(90deg, rgba(82,183,136,.03), rgba(82,183,136,.08), rgba(82,183,136,.03));
+  box-shadow: inset 3px 0 0 var(--nd-electric);
+}
+
+[data-theme="dark"] .table tbody tr:hover {
+  background: linear-gradient(90deg, rgba(82,183,136,.04), rgba(82,183,136,.1), rgba(82,183,136,.04));
+}
+
+/* ── Buttons: Enhanced Glow & Depth ─────────────────────── */
+.btn-nd {
+  position: relative;
+  overflow: hidden;
+  transition: all .3s cubic-bezier(.4,0,.2,1);
+  box-shadow: 0 2px 8px rgba(27,67,50,.2), inset 0 1px 0 rgba(255,255,255,.1);
+}
+
+/* Animated shine on button */
+.btn-nd::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.15), transparent);
+  transition: none;
+  pointer-events: none;
+}
+
+.btn-nd:hover::before {
+  animation: glowTrail .6s ease;
+}
+
+.btn-nd:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(27,67,50,.3), 0 0 12px rgba(82,183,136,.2), inset 0 1px 0 rgba(255,255,255,.15);
+}
+
+.btn-nd:active {
+  transform: translateY(0) scale(.98);
+  box-shadow: 0 1px 4px rgba(27,67,50,.2);
+}
+
+/* Outline button glow */
+.btn-outline-nd {
+  position: relative;
+  transition: all .3s cubic-bezier(.4,0,.2,1);
+}
+
+.btn-outline-nd:hover {
+  box-shadow: 0 2px 12px rgba(45,106,79,.2), 0 0 8px rgba(82,183,136,.15);
+}
+
+/* ── Action Badge Button ────────────────────────────────── */
+.btn-action {
+  transition: all .25s cubic-bezier(.4,0,.2,1);
+}
+
+.btn-action:hover {
+  transform: scale(1.15) rotate(-2deg);
+  box-shadow: 0 2px 8px rgba(0,0,0,.1);
+}
+
+/* ── Modals: Glass & Glow ───────────────────────────────── */
+.modal-content {
+  border: 1px solid rgba(82,183,136,.08);
+  box-shadow: 0 12px 48px rgba(0,0,0,.12), 0 0 0 1px rgba(82,183,136,.05);
+  animation: scaleIn .3s cubic-bezier(.4,0,.2,1);
+}
+
+[data-theme="dark"] .modal-content {
+  border-color: rgba(82,183,136,.12);
+  box-shadow: 0 12px 48px rgba(0,0,0,.4), 0 0 30px rgba(82,183,136,.05);
+}
+
+.modal-header {
+  background: linear-gradient(135deg, #061210 0%, #0d2818 50%, #0f301e 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Electric line at bottom of modal header */
+.modal-header::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--nd-electric), var(--nd-neon), var(--nd-electric), transparent);
+  opacity: .6;
+}
+
+/* ── Form Controls: Glow Focus ──────────────────────────── */
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--nd-accent);
+  box-shadow: 0 0 0 3px rgba(82,183,136,.12), 0 0 8px rgba(82,183,136,.08);
+}
+
+/* ── Badge Glow ─────────────────────────────────────────── */
+.badge.bg-success {
+  box-shadow: 0 0 6px rgba(25,135,84,.3);
+}
+.badge.bg-warning {
+  box-shadow: 0 0 6px rgba(255,193,7,.3);
+}
+.badge.bg-danger {
+  box-shadow: 0 0 6px rgba(220,53,69,.3);
+}
+.badge.bg-info {
+  box-shadow: 0 0 6px rgba(13,202,240,.3);
+}
+.badge.bg-primary {
+  box-shadow: 0 0 6px rgba(13,110,253,.3);
+}
+
+/* ── Pipeline Card Enhancement ──────────────────────────── */
+.pipeline-card {
+  transition: all .3s cubic-bezier(.4,0,.2,1);
+}
+
+.pipeline-card:hover {
+  box-shadow: 0 6px 20px rgba(0,0,0,.08), 0 0 0 1px rgba(82,183,136,.08);
+  transform: translateY(-3px) scale(1.01);
+}
+
+.pipeline-column-header {
+  position: relative;
+  overflow: hidden;
+}
+
+/* ── Toast Enhancements ─────────────────────────────────── */
+.toast {
+  border-left: 3px solid var(--nd-electric);
+}
+
+/* ── Settings Sections ──────────────────────────────────── */
+.settings-section {
+  transition: all .3s ease;
+}
+
+.settings-section:hover {
+  box-shadow: 0 4px 28px rgba(0,0,0,.06), 0 0 0 1px rgba(82,183,136,.06);
+}
+
+/* ── Import Dropzone Enhancement ────────────────────────── */
+.import-dropzone {
+  position: relative;
+  overflow: hidden;
+}
+
+.import-dropzone::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  border-radius: var(--nd-radius);
+  background: linear-gradient(45deg, var(--nd-electric), transparent, var(--nd-neon), transparent, var(--nd-electric));
+  background-size: 400% 400%;
+  z-index: -1;
+  opacity: 0;
+  transition: opacity .4s ease;
+}
+
+.import-dropzone:hover::before,
+.import-dropzone.drag-over::before {
+  opacity: 1;
+  animation: gradientShift 3s ease infinite;
+}
+
+/* ── Login Page: Animated Background ────────────────────── */
+.login-body {
+  position: relative;
+  overflow: hidden;
+  background: #060f0a;
+}
+
+.login-body #loginCanvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.login-body .login-container {
+  position: relative;
+  z-index: 1;
+}
+
+.login-body h3 {
+  color: #fff;
+  text-shadow: 0 0 20px rgba(82,183,136,.3);
+}
+
+.login-body > .login-container > .text-center > p {
+  color: rgba(255,255,255,.5) !important;
+}
+
+.login-card {
+  background: rgba(15, 23, 42, .85);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1.5px solid rgba(82,183,136,.15);
+  box-shadow: 0 8px 32px rgba(0,0,0,.3), 0 0 40px rgba(82,183,136,.05);
+  color: #e2e8f0;
+}
+
+.login-card h5 {
+  color: #fff;
+}
+
+.login-card .form-label {
+  color: #94a3b8;
+}
+
+.login-card .input-group-text {
+  background: rgba(82,183,136,.08);
+  border: 1.5px solid rgba(82,183,136,.15);
+  border-right: none;
+  color: var(--nd-neon);
+}
+
+.login-card .form-control {
+  background: rgba(15,23,42,.6);
+  border: 1.5px solid rgba(82,183,136,.15);
+  border-left: none;
+  color: #f1f5f9;
+}
+
+.login-card .form-control::placeholder {
+  color: rgba(255,255,255,.3);
+}
+
+.login-card .form-control:focus {
+  background: rgba(15,23,42,.8);
+  border-color: var(--nd-electric);
+  box-shadow: 0 0 0 3px rgba(82,183,136,.12);
+}
+
+.login-card .form-control:focus + .input-group-text,
+.login-card .input-group:focus-within .input-group-text {
+  border-color: var(--nd-electric);
+}
+
+.login-body .login-logo {
+  box-shadow: 0 8px 30px rgba(82,183,136,.3), 0 0 40px rgba(82,183,136,.15);
+  animation: borderGlow 3s ease-in-out infinite;
+}
+
+.login-body .btn-nd {
+  box-shadow: 0 4px 16px rgba(82,183,136,.3), 0 0 20px rgba(82,183,136,.1);
+}
+
+.login-body .btn-nd:hover {
+  box-shadow: 0 6px 24px rgba(82,183,136,.4), 0 0 30px rgba(82,183,136,.2);
+}
+
+.login-body .text-muted {
+  color: rgba(255,255,255,.3) !important;
+}
+
+/* Login card electric border */
+.login-card {
+  position: relative;
+}
+
+.login-card::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  right: -1px;
+  bottom: -1px;
+  border-radius: 17px;
+  background: linear-gradient(135deg, rgba(82,183,136,.3), transparent 40%, transparent 60%, rgba(110,231,183,.2));
+  z-index: -1;
+  opacity: .5;
+}
+
+/* ── Scrollbar: Neon Theme ──────────────────────────────── */
+.sidebar::-webkit-scrollbar-thumb {
+  background: rgba(82,183,136,.2);
+}
+.sidebar::-webkit-scrollbar-thumb:hover {
+  background: rgba(82,183,136,.4);
+}
+
+/* ── Misc Enhancements ──────────────────────────────────── */
+
+/* Smooth page transitions */
+.page-body {
+  animation: floatUp .5s ease both;
+}
+
+/* Enhanced empty state */
+.empty-state i {
+  filter: drop-shadow(0 0 8px rgba(82,183,136,.2));
+}
+
+/* Quick-create buttons in approve modal */
+.btn-sm.btn-outline-nd {
+  transition: all .25s cubic-bezier(.4,0,.2,1);
+}
+
+.btn-sm.btn-outline-nd:hover {
+  transform: translateY(-1px) scale(1.02);
+}
+
+/* ── Truck Dispatch Button Animation ────────────────────── */
+.btn-nd-dispatch {
+  --truck-color: #52b788;
+  position: relative;
+  overflow: hidden;
+  min-width: 160px;
+}
+
+.btn-nd-dispatch .btn-truck-icon {
+  display: inline-block;
+  transition: transform .4s cubic-bezier(.4,0,.2,1);
+}
+
+.btn-nd-dispatch:hover .btn-truck-icon {
+  animation: truckDrive .6s ease;
+}
+
+@keyframes truckDrive {
+  0%   { transform: translateX(0); }
+  30%  { transform: translateX(6px) rotate(-2deg); }
+  60%  { transform: translateX(3px) rotate(1deg); }
+  100% { transform: translateX(0) rotate(0); }
+}
+
+/* ── Loading Skeleton Shimmer ───────────────────────────── */
+.skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 8px;
+}
+
+[data-theme="dark"] .skeleton {
+  background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+  background-size: 200% 100%;
+}
+
+/* ── Counter Animation Helper ───────────────────────────── */
+.stat-value[data-count] {
+  transition: color .3s ease;
+}
+
+/* ── Particle dots background (subtle) ──────────────────── */
+.sidebar::before {
+  content: '';
+  position: absolute;
+  width: 200%;
+  height: 200%;
+  top: -50%;
+  left: -50%;
+  background-image:
+    radial-gradient(circle at 20% 30%, rgba(82,183,136,.04) 1px, transparent 1px),
+    radial-gradient(circle at 60% 70%, rgba(82,183,136,.03) 1px, transparent 1px),
+    radial-gradient(circle at 80% 20%, rgba(82,183,136,.05) 1px, transparent 1px);
+  background-size: 80px 80px, 120px 120px, 100px 100px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Copyright glow in sidebar ──────────────────────────── */
+.sidebar hr {
+  border-image: linear-gradient(90deg, transparent, rgba(82,183,136,.15), transparent) 1;
+}
+
+/* ── Dark theme login override already handled above ────── */
+/* The login page now uses a universal dark theme look */
+[data-theme="dark"] .login-body {
+  background: #060f0a;
+}
+
+/* ── Notification dot pulse ─────────────────────────────── */
+.notification-dot {
+  width: 8px;
+  height: 8px;
+  background: #ef4444;
+  border-radius: 50%;
+  display: inline-block;
+  animation: pulseGlow 2s infinite;
+  box-shadow: 0 0 6px rgba(239,68,68,.4);
+}
+
+/* ── Enhanced User Avatar ───────────────────────────────── */
+.user-avatar-topbar {
+  box-shadow: 0 0 0 2px rgba(82,183,136,.2);
+  transition: all .3s ease;
+}
+
+.user-avatar-topbar:hover {
+  box-shadow: 0 0 0 2px var(--nd-electric), 0 0 10px rgba(82,183,136,.2);
+  transform: scale(1.05);
+}
+
+/* ── Quick Link Pills (sidebar external links) ──────────── */
+.sidebar .nav-link[target="_blank"] {
+  opacity: .7;
+  transition: all .3s ease;
+}
+
+.sidebar .nav-link[target="_blank"]:hover {
+  opacity: 1;
+  background: rgba(82,183,136,.05);
+  border-color: rgba(82,183,136,.08);
+}
