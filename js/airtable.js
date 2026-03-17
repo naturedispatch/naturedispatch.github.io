@@ -79,7 +79,7 @@ const Airtable = (() => {
     const res = await fetch(_url(table), {
       method: 'POST',
       headers: _headers(),
-      body: JSON.stringify({ fields }),
+      body: JSON.stringify({ fields, typecast: true }),
     });
     if (!res.ok) await _handleError(res, 'Create failed');
     return res.json();
@@ -92,7 +92,7 @@ const Airtable = (() => {
     const res = await fetch(_url(table, recordId), {
       method: 'PATCH',
       headers: _headers(),
-      body: JSON.stringify({ fields }),
+      body: JSON.stringify({ fields, typecast: true }),
     });
     if (!res.ok) await _handleError(res, 'Update failed');
     return res.json();
