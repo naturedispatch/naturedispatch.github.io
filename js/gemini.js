@@ -3,6 +3,7 @@
  * NATURE DISPATCH TMS — Gemini AI Module
  * ============================================================
  * • Parses Rate Con PDFs using Google Gemini Vision API
+ * • Round-robin model fallback: tries multiple models on quota errors
  * • Extracts load data (load #, broker, stops, revenue, dates…)
  * • Creates loads automatically from extracted data
  * ============================================================
@@ -11,6 +12,20 @@
 const Gemini = (() => {
 
   const STORAGE_KEY = 'nd_gemini_key';
+
+  // ── Round-robin model list (ordered by priority / capability) ──
+  // On quota error the module automatically tries the next model.
+  const MODELS = [
+    'gemini-2.0-flash',
+    'gemini-2.5-flash-lite',
+    'gemini-2.0-flash-lite',
+    'gemini-2.5-flash-preview-04-17',
+    'gemini-2.5-pro',
+    'gemini-3.1-flash-lite-preview-06-06',
+  ];
+
+  // Track which model index to start with (persisted per session)
+  let _modelIndex = 0;
 
   /** Get the API key from localStorage */
   function getApiKey() {
@@ -26,7 +41,6 @@ const Gemini = (() => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => {
-        // result is "data:application/pdf;base64,XXXX…"
         const base64 = reader.result.split(',')[1];
         resolve(base64);
       };
@@ -36,8 +50,31 @@ const Gemini = (() => {
   }
 
   /**
+   * Determine if an error is a quota / rate-limit error that warrants
+   * trying the next model in the round-robin list.
+   */
+  function _isQuotaError(status, errBody) {
+    if (status === 429) return true;
+    const msg = (errBody?.error?.message || '').toLowerCase();
+    return msg.includes('quota') || msg.includes('rate') || msg.includes('resource has been exhausted');
+  }
+
+  /**
+   * Call Gemini generateContent for a specific model.
+   * @returns {Promise<Response>}
+   */
+  function _callModel(modelName, apiKey, requestBody) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+    return fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestBody),
+    });
+  }
+
+  /**
    * Send a PDF to Gemini to extract Rate Con data.
-   * Uses the Gemini 2.0 Flash model with inline file data.
+   * Implements round-robin fallback across MODELS on quota errors.
    *
    * @param {File} file – PDF File object
    * @returns {Promise<Object>} – Parsed load data
@@ -91,9 +128,7 @@ Rules:
 
 Return ONLY the JSON, nothing else.`;
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-
-    const body = {
+    const requestBody = {
       contents: [{
         parts: [
           {
@@ -111,38 +146,64 @@ Return ONLY the JSON, nothing else.`;
       }
     };
 
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
+    // ── Round-robin: try each model starting from _modelIndex ───
+    const errors = [];
+    for (let attempt = 0; attempt < MODELS.length; attempt++) {
+      const idx = (_modelIndex + attempt) % MODELS.length;
+      const model = MODELS[idx];
+      console.log(`[Gemini] Trying model: ${model} (attempt ${attempt + 1}/${MODELS.length})`);
 
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      const msg = errData?.error?.message || `HTTP ${res.status}`;
-      throw new Error(`Gemini API error: ${msg}`);
+      try {
+        const res = await _callModel(model, apiKey, requestBody);
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          if (_isQuotaError(res.status, errData)) {
+            const msg = errData?.error?.message || `HTTP ${res.status}`;
+            console.warn(`[Gemini] ${model} quota exceeded, rotating… (${msg})`);
+            errors.push(`${model}: ${msg}`);
+            continue; // try next model
+          }
+          // Non-quota error → throw immediately
+          const msg = errData?.error?.message || `HTTP ${res.status}`;
+          throw new Error(`Gemini API error (${model}): ${msg}`);
+        }
+
+        // Success → advance the robin index so next call starts with this model
+        _modelIndex = idx;
+
+        const data = await res.json();
+        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!text) throw new Error('Gemini returned an empty response. The PDF may be unreadable.');
+
+        // Parse JSON from the response
+        let cleaned = text.trim();
+        if (cleaned.startsWith('```')) {
+          cleaned = cleaned.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '');
+        }
+
+        try {
+          const parsed = JSON.parse(cleaned);
+          console.log(`[Gemini] ✓ Success with model: ${model}`);
+          return parsed;
+        } catch (parseErr) {
+          console.error('[Gemini] Raw response:', text);
+          throw new Error('Failed to parse AI response. The model returned invalid JSON.');
+        }
+
+      } catch (err) {
+        // If it was already thrown as a non-quota error, re-throw
+        if (!err.message.includes('quota exceeded, rotating')) throw err;
+      }
     }
 
-    const data = await res.json();
-
-    // Extract text from Gemini response
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) throw new Error('Gemini returned an empty response. The PDF may be unreadable.');
-
-    // Parse JSON from the response (handle potential markdown wrapping)
-    let cleaned = text.trim();
-    // Remove markdown code block if present
-    if (cleaned.startsWith('```')) {
-      cleaned = cleaned.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '');
-    }
-
-    try {
-      return JSON.parse(cleaned);
-    } catch (parseErr) {
-      console.error('Gemini raw response:', text);
-      throw new Error('Failed to parse AI response. The model returned invalid JSON.');
-    }
+    // All models exhausted
+    throw new Error(
+      `All Gemini models hit quota limits. Tried: ${MODELS.join(', ')}.\n` +
+      `Details:\n${errors.join('\n')}\n\n` +
+      `Please wait a few minutes or check your billing at https://ai.google.dev/`
+    );
   }
 
-  return { getApiKey, parseRateCon };
+  return { getApiKey, parseRateCon, MODELS };
 })();

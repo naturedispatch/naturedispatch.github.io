@@ -698,6 +698,31 @@ async function processRateCon() {
   document.getElementById('importStep1').style.display = 'none';
   document.getElementById('importStep2').style.display = '';
 
+  // Live model status: intercept console.log to show which model is being tried
+  const statusEl = document.getElementById('aiModelStatus');
+  const _origLog = console.log;
+  const _origWarn = console.warn;
+  console.log = function(...args) {
+    _origLog.apply(console, args);
+    const msg = args.join(' ');
+    if (msg.includes('[Gemini] Trying model:')) {
+      const model = msg.match(/Trying model:\s*(\S+)/)?.[1] || '';
+      if (statusEl) statusEl.textContent = `Trying model: ${model}…`;
+    }
+    if (msg.includes('[Gemini] ✓ Success')) {
+      const model = msg.match(/model:\s*(\S+)/)?.[1] || '';
+      if (statusEl) statusEl.innerHTML = `<i class="bi bi-check-circle-fill text-success me-1"></i>Success with ${model}`;
+    }
+  };
+  console.warn = function(...args) {
+    _origWarn.apply(console, args);
+    const msg = args.join(' ');
+    if (msg.includes('[Gemini]') && msg.includes('quota exceeded')) {
+      const model = msg.match(/\[Gemini\]\s*(\S+)/)?.[1] || '';
+      if (statusEl) statusEl.innerHTML = `<span class="text-warning"><i class="bi bi-exclamation-triangle me-1"></i>${model} quota exceeded, trying next…</span>`;
+    }
+  };
+
   try {
     const result = await Gemini.parseRateCon(_importFile);
     _importData = result;
@@ -713,6 +738,10 @@ async function processRateCon() {
     // Go back to step 1
     document.getElementById('importStep2').style.display = 'none';
     document.getElementById('importStep1').style.display = '';
+  } finally {
+    // Restore original console methods
+    console.log = _origLog;
+    console.warn = _origWarn;
   }
 }
 
