@@ -859,37 +859,42 @@ async function createLoadFromImport() {
     // Create the load in Airtable
     const created = await Airtable.create(CONFIG.TABLES.LOADS, fields);
     const loadId = created.id;
+    console.log('[Import] Load created with ID:', loadId);
 
     // Create stops from AI data
     let stopsCreated = 0;
-    if (_importData.stops && _importData.stops.length) {
-      for (let i = 0; i < _importData.stops.length; i++) {
-        const s = _importData.stops[i];
-        const addr = [s.address, s.city, s.state, s.zip].filter(Boolean).join(', ');
-        const stopFields = {
-          'Load Link':      [loadId],
-          'Stop Type':      s.type === 'Delivery' ? 'Delivery' : 'Pickup',
-          'Stop Sequence':  i + 1,
-        };
-        if (addr) stopFields['Address'] = addr;
-        if (s.date) {
-          try {
-            const dateStr = s.date + (s.time ? 'T' + s.time + ':00' : 'T00:00:00');
-            const d = new Date(dateStr);
-            if (!isNaN(d.getTime())) stopFields['Appointment Date/Time'] = d.toISOString();
-          } catch (_) {}
-        }
+    const stops = _importData.stops || [];
+    console.log('[Import] Stops to create:', stops.length, JSON.stringify(stops));
+    
+    for (let i = 0; i < stops.length; i++) {
+      const s = stops[i];
+      const addr = [s.address, s.city, s.state, s.zip].filter(Boolean).join(', ');
+      const stopType = (s.type || '').toLowerCase().includes('deliv') ? 'Delivery' : 'Pickup';
+      const stopFields = {
+        'Load Link':      [loadId],
+        'Stop Type':      stopType,
+        'Stop Sequence':  i + 1,
+      };
+      if (addr) stopFields['Address'] = addr;
+      if (s.date) {
         try {
-          await Airtable.create(CONFIG.TABLES.LOAD_STOPS, stopFields);
-          stopsCreated++;
-          console.log(`[Import] Stop ${i+1} created:`, stopFields);
-        } catch (err) {
-          console.error(`[Import] Failed to create stop ${i + 1}:`, err, stopFields);
-          App.showToast(`Warning: Stop ${i+1} failed — ${err.message}`, 'warning');
-        }
+          const dateStr = s.date + (s.time ? 'T' + s.time + ':00' : 'T00:00:00');
+          const d = new Date(dateStr);
+          if (!isNaN(d.getTime())) stopFields['Appointment Date/Time'] = d.toISOString();
+        } catch (_) {}
+      }
+      console.log(`[Import] Creating stop ${i+1}:`, JSON.stringify(stopFields));
+      try {
+        const stopResult = await Airtable.create(CONFIG.TABLES.LOAD_STOPS, stopFields);
+        stopsCreated++;
+        console.log(`[Import] Stop ${i+1} created OK:`, stopResult.id);
+      } catch (err) {
+        console.error(`[Import] Stop ${i+1} FAILED:`, err.message, JSON.stringify(stopFields));
+        App.showToast(`Stop ${i+1} failed: ${err.message}`, 'danger');
       }
     }
-    console.log(`[Import] ${stopsCreated}/${(_importData.stops||[]).length} stops created for load ${loadId}`);
+    
+    App.showToast(`Load created! ${stopsCreated}/${stops.length} stops added.`, stopsCreated === stops.length ? 'success' : 'warning');
 
     // Upload the Rate Con PDF to the new load
     if (_importFile) {
@@ -900,7 +905,6 @@ async function createLoadFromImport() {
       }
     }
 
-    App.showToast('Load created with Pending Approval status!', 'success');
     bootstrap.Modal.getInstance(document.getElementById('importRateConModal')).hide();
     loadLoadsPage();
   });
