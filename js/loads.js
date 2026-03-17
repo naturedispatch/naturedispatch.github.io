@@ -45,7 +45,7 @@ async function loadLoadsPage() {
       dateId: 'loadsDate',
       filters: [
         { id: 'filterStatus', label: 'All Status', options: [
-          {value:'New',text:'New'},{value:'Dispatched',text:'Dispatched'},{value:'In Transit',text:'In Transit'},
+          {value:'Pending Approval',text:'Pending Approval'},{value:'New',text:'New'},{value:'Dispatched',text:'Dispatched'},{value:'In Transit',text:'In Transit'},
           {value:'Delivered',text:'Delivered'},{value:'Invoiced',text:'Invoiced'},{value:'Paid',text:'Paid'},{value:'Cancelled',text:'Cancelled'}
         ]},
         { id: 'filterInvoice', label: 'All Invoice', options: [
@@ -62,7 +62,9 @@ async function loadLoadsPage() {
         </div>
         <div class="d-flex gap-2">
           ${CSV.buttons('Loads')}
-          <a href="pipeline.html" class="btn btn-sm btn-outline-nd"><i class="bi bi-kanban me-1"></i>Pipeline</a>
+          <button class="btn btn-sm btn-outline-nd" onclick="openImportRateCon()">
+            <i class="bi bi-robot me-1"></i>Import Rate Con
+          </button>
           <button class="btn btn-nd" onclick="openNewLoad()">
             <i class="bi bi-plus-lg me-1"></i>New Load
           </button>
@@ -142,6 +144,7 @@ function etaDisplay(eta) {
 
 function loadRow(rec) {
   const f = rec.fields;
+  const isPending = f['Status'] === 'Pending Approval';
   return `
   <tr data-filterStatus="${f['Status'] || ''}" data-filterInvoice="${f['Invoice Status'] || ''}" data-date="${f['Pickup Date'] || f['ETA'] || ''}">
     <td class="fw-semibold">${f['Load Number'] || '—'}</td>
@@ -155,6 +158,15 @@ function loadRow(rec) {
     <td>${invoiceBadge(f['Invoice Status'])}</td>
     <td>${App.statusBadge(f['Status'])}</td>
     <td class="text-center text-nowrap">
+      ${isPending ? `
+      <button class="btn btn-sm btn-action btn-outline-success me-1" title="Approve Load"
+        onclick="approveLoad('${rec.id}')">
+        <i class="bi bi-check-lg"></i>
+      </button>
+      <button class="btn btn-sm btn-action btn-outline-danger me-1" title="Reject Load"
+        onclick="rejectLoad('${rec.id}')">
+        <i class="bi bi-x-lg"></i>
+      </button>` : ''}
       <button class="btn btn-sm btn-action btn-outline-info me-1" title="View Details"
         onclick="openLoadDetail('${rec.id}')">
         <i class="bi bi-eye"></i>
@@ -582,7 +594,11 @@ async function openLoadDetail(id) {
           </div>
           <div class="row g-2 mb-3">
             <div class="col-4"><strong>Revenue</strong><div class="fs-5 fw-bold text-success">${_c(f['Revenue'])}</div></div>
-            <div class="col-4"><strong>Miles</strong><div>${f['Miles'] || '—'}</div></div>
+            <div class="col-4"><strong>Miles</strong><div>${f['Miles'] || '—'}
+              <button class="btn btn-xs btn-outline-nd ms-2" onclick="calculateLoadDistance('${id}')" title="Calculate via Google Maps">
+                <i class="bi bi-signpost-2"></i>
+              </button>
+            </div></div>
             <div class="col-4"><strong>Invoice Status</strong><div>${invoiceBadge(f['Invoice Status'])}</div></div>
           </div>
           ${f['Notes'] ? `<div class="mb-3"><strong>Notes</strong><div class="mt-1 p-2 bg-light rounded" style="font-size:.85rem">${f['Notes']}</div></div>` : ''}
@@ -613,5 +629,314 @@ async function openLoadDetail(id) {
     document.getElementById('loadDetailTitle').textContent = `Load ${f['Load Number'] || ''} — Details`;
   } catch (err) {
     body.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// ██  RATE CON IMPORT — AI WORKFLOW                          ██
+// ══════════════════════════════════════════════════════════════
+
+let _importFile = null;
+let _importData = null;    // parsed data from AI
+let _importMiles = 0;      // calculated distance
+
+function openImportRateCon() {
+  _importFile = null;
+  _importData = null;
+  _importMiles = 0;
+  document.getElementById('importStep1').style.display = '';
+  document.getElementById('importStep2').style.display = 'none';
+  document.getElementById('importStep3').style.display = 'none';
+  document.getElementById('importCreateBtn').style.display = 'none';
+  document.getElementById('importProcessBtn').disabled = true;
+  document.getElementById('importFileName').textContent = '';
+  document.getElementById('importFileInput').value = '';
+  new bootstrap.Modal(document.getElementById('importRateConModal')).show();
+}
+
+// File selection (click + drag-and-drop)
+document.addEventListener('DOMContentLoaded', () => {
+  const input = document.getElementById('importFileInput');
+  const dropzone = document.getElementById('importDropzone');
+  if (!input || !dropzone) return;
+
+  input.addEventListener('change', () => {
+    if (input.files[0]) {
+      _importFile = input.files[0];
+      document.getElementById('importFileName').innerHTML =
+        `<i class="bi bi-file-earmark-pdf-fill me-1 text-danger"></i><strong>${_importFile.name}</strong> (${((_importFile.size)/1024).toFixed(1)} KB)`;
+      document.getElementById('importProcessBtn').disabled = false;
+    }
+  });
+
+  dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag-over'); });
+  dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
+  dropzone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropzone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      _importFile = file;
+      input.files = e.dataTransfer.files;
+      document.getElementById('importFileName').innerHTML =
+        `<i class="bi bi-file-earmark-pdf-fill me-1 text-danger"></i><strong>${_importFile.name}</strong> (${((_importFile.size)/1024).toFixed(1)} KB)`;
+      document.getElementById('importProcessBtn').disabled = false;
+    }
+  });
+});
+
+async function processRateCon() {
+  if (!_importFile) return;
+
+  const apiKey = Gemini.getApiKey();
+  if (!apiKey) {
+    App.showToast('Gemini API key not configured. Go to Settings → Integrations.', 'warning');
+    return;
+  }
+
+  // Step 2: show spinner
+  document.getElementById('importStep1').style.display = 'none';
+  document.getElementById('importStep2').style.display = '';
+
+  try {
+    const result = await Gemini.parseRateCon(_importFile);
+    _importData = result;
+    renderImportPreview(result);
+
+    // Step 3: show preview
+    document.getElementById('importStep2').style.display = 'none';
+    document.getElementById('importStep3').style.display = '';
+    document.getElementById('importCreateBtn').style.display = '';
+  } catch (err) {
+    console.error('AI parsing failed:', err);
+    App.showToast('AI parsing failed: ' + err.message, 'danger');
+    // Go back to step 1
+    document.getElementById('importStep2').style.display = 'none';
+    document.getElementById('importStep1').style.display = '';
+  }
+}
+
+function renderImportPreview(data) {
+  // Load info
+  document.getElementById('aiLoadNumber').value = data.load_number || '';
+  document.getElementById('aiRevenue').value    = data.revenue || '';
+  document.getElementById('aiEquipment').value  = data.equipment_type || '';
+  document.getElementById('aiWeight').value     = data.weight || '';
+  document.getElementById('aiCommodity').value  = data.commodity || '';
+  document.getElementById('aiNotes').value      = [data.special_instructions, data.notes].filter(Boolean).join('\n');
+
+  // Company dropdown
+  const compSel = document.getElementById('aiCompany');
+  compSel.innerHTML = '<option value="">Select…</option>' +
+    _companies.map(c => `<option value="${c.id}">${c.fields['Company Name'] || ''}</option>`).join('');
+
+  // Broker info
+  document.getElementById('aiBrokerName').textContent  = data.broker_name || '—';
+  document.getElementById('aiBrokerMC').textContent    = data.broker_mc ? `MC# ${data.broker_mc}` : '';
+  document.getElementById('aiBrokerPhone').textContent = data.broker_phone || '';
+  document.getElementById('aiBrokerEmail').textContent = data.broker_email || '';
+
+  // Stops
+  const stopsEl = document.getElementById('aiStopsList');
+  if (data.stops && data.stops.length) {
+    stopsEl.innerHTML = data.stops.map((s, i) => `
+      <div class="d-flex align-items-start gap-2 mb-2 p-2 rounded" style="background:#f8fafb;border:1px solid #e2e8f0">
+        <span class="badge ${s.type === 'Pickup' ? 'bg-primary' : 'bg-success'} mt-1">${s.type || 'Stop'}</span>
+        <div style="flex:1">
+          <div style="font-size:.85rem;font-weight:500">${s.company_name || ''}</div>
+          <div style="font-size:.8rem;color:#64748b">${[s.address, s.city, s.state, s.zip].filter(Boolean).join(', ')}</div>
+          <div style="font-size:.75rem;color:#94a3b8">${s.date || ''} ${s.time || ''} ${s.reference ? '• Ref: ' + s.reference : ''}</div>
+        </div>
+      </div>`).join('');
+  } else {
+    stopsEl.innerHTML = '<p class="text-muted" style="font-size:.85rem">No stops detected</p>';
+  }
+
+  // Reset distance info
+  document.getElementById('aiMilesValue').textContent = '—';
+  document.getElementById('aiCalcDistBtn').disabled = false;
+}
+
+// ── Calculate distance from import preview stops ────────────
+async function calcImportDistance() {
+  const btn = document.getElementById('aiCalcDistBtn');
+  if (!_importData || !_importData.stops || _importData.stops.length < 2) {
+    App.showToast('Need at least 2 stops to calculate distance', 'warning');
+    return;
+  }
+
+  const gmapsKey = GMaps.getApiKey();
+  if (!gmapsKey) {
+    App.showToast('Google Maps API key not configured. Go to Settings → Integrations.', 'warning');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Calculating…';
+
+  try {
+    const addresses = _importData.stops.map(s =>
+      [s.address, s.city, s.state, s.zip].filter(Boolean).join(', ')
+    );
+    const result = await GMaps.calculateRouteDistance(addresses);
+    _importMiles = Math.round(result.totalMiles);
+    document.getElementById('aiMilesValue').textContent = _importMiles.toLocaleString() + ' mi';
+    document.getElementById('aiDistanceInfo').innerHTML = `
+      <div style="font-size:.82rem;color:#64748b">
+        ${result.legs.map((leg, i) =>
+          `<div class="mb-1"><strong>Leg ${i+1}:</strong> ${leg.distanceText} (${leg.durationText})</div>`
+        ).join('')}
+      </div>
+      <button class="btn btn-sm btn-outline-nd w-100 mt-2" onclick="calcImportDistance()">
+        <i class="bi bi-arrow-clockwise me-2"></i>Recalculate
+      </button>`;
+    App.showToast(`Total distance: ${_importMiles} miles`);
+  } catch (err) {
+    console.error('Distance calc failed:', err);
+    App.showToast('Distance calculation failed: ' + err.message, 'warning');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-signpost-2 me-2"></i>Calculate Distance';
+  }
+}
+
+// ── Create load from imported Rate Con ──────────────────────
+async function createLoadFromImport() {
+  const btn = document.getElementById('importCreateBtn');
+  if (!_importData) return;
+
+  await App.withLoading(btn, async () => {
+    // Build load fields
+    const fields = {
+      'Load Number': document.getElementById('aiLoadNumber').value.trim() || _importData.load_number || 'AI-' + Date.now(),
+      'Status':      'Pending Approval',
+      'Revenue':     parseFloat(document.getElementById('aiRevenue').value) || 0,
+      'Miles':       _importMiles || 0,
+      'Notes':       document.getElementById('aiNotes').value || '',
+    };
+
+    // Link company if selected
+    const company = document.getElementById('aiCompany').value;
+    if (company) fields['Company'] = [company];
+
+    // Try to match broker by name
+    const brokerName = _importData.broker_name;
+    if (brokerName) {
+      const matchedBroker = _brokers.find(b =>
+        (b.fields['Broker Name'] || '').toLowerCase().includes(brokerName.toLowerCase())
+      );
+      if (matchedBroker) fields['Brokers/Shippers'] = [matchedBroker.id];
+    }
+
+    // Create the load in Airtable
+    const created = await Airtable.create(CONFIG.TABLES.LOADS, fields);
+    const loadId = created.id;
+
+    // Create stops from AI data
+    if (_importData.stops && _importData.stops.length) {
+      for (let i = 0; i < _importData.stops.length; i++) {
+        const s = _importData.stops[i];
+        const stopFields = {
+          'Load Link':      [loadId],
+          'Stop Type':      s.type === 'Delivery' ? 'Delivery' : 'Pickup',
+          'Stop Sequence':  i + 1,
+          'Address':        [s.address, s.city, s.state, s.zip].filter(Boolean).join(', '),
+        };
+        if (s.date) {
+          try {
+            stopFields['Appointment Date/Time'] = new Date(s.date + (s.time ? ' ' + s.time : '')).toISOString();
+          } catch (_) {}
+        }
+        try {
+          await Airtable.create(CONFIG.TABLES.LOAD_STOPS, stopFields);
+        } catch (err) {
+          console.warn(`Failed to create stop ${i + 1}:`, err);
+        }
+      }
+    }
+
+    // Upload the Rate Con PDF to the new load
+    if (_importFile) {
+      try {
+        await Airtable.uploadAttachment(CONFIG.TABLES.LOADS, loadId, 'Rate Con PDF', _importFile);
+      } catch (err) {
+        console.warn('Rate Con upload failed:', err);
+      }
+    }
+
+    App.showToast('Load created with Pending Approval status!', 'success');
+    bootstrap.Modal.getInstance(document.getElementById('importRateConModal')).hide();
+    loadLoadsPage();
+  });
+}
+
+// ══════════════════════════════════════════════════════════════
+// ██  ADMIN APPROVAL / REJECT WORKFLOW                       ██
+// ══════════════════════════════════════════════════════════════
+
+async function approveLoad(recordId) {
+  if (!confirm('Approve this load and change status to "New"?')) return;
+  try {
+    await Airtable.update(CONFIG.TABLES.LOADS, recordId, { 'Status': 'New' });
+    App.showToast('Load approved! Status changed to New.', 'success');
+    loadLoadsPage();
+  } catch (err) {
+    App.showToast('Approve failed: ' + err.message, 'danger');
+  }
+}
+
+async function rejectLoad(recordId) {
+  if (!confirm('Reject this load? Status will be set to "Cancelled".')) return;
+  try {
+    await Airtable.update(CONFIG.TABLES.LOADS, recordId, { 'Status': 'Cancelled' });
+    App.showToast('Load rejected. Status changed to Cancelled.', 'warning');
+    loadLoadsPage();
+  } catch (err) {
+    App.showToast('Reject failed: ' + err.message, 'danger');
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// ██  GOOGLE MAPS DISTANCE — EXISTING LOADS                  ██
+// ══════════════════════════════════════════════════════════════
+
+async function calculateLoadDistance(loadId) {
+  const gmapsKey = GMaps.getApiKey();
+  if (!gmapsKey) {
+    App.showToast('Google Maps API key not configured. Go to Settings → Integrations.', 'warning');
+    return;
+  }
+
+  App.showToast('Calculating distance…', 'info');
+
+  try {
+    // Fetch stops for this load
+    const stops = await Airtable.getAll(CONFIG.TABLES.LOAD_STOPS, {
+      filterByFormula: `FIND("${loadId}", ARRAYJOIN({Load Link}))`,
+      'sort[0][field]': 'Stop Sequence',
+      'sort[0][direction]': 'asc',
+    });
+
+    if (stops.length < 2) {
+      App.showToast('Need at least 2 stops to calculate distance.', 'warning');
+      return;
+    }
+
+    const addresses = stops.map(s => s.fields['Address']).filter(Boolean);
+    if (addresses.length < 2) {
+      App.showToast('Stops are missing addresses.', 'warning');
+      return;
+    }
+
+    const result = await GMaps.calculateRouteDistance(addresses);
+    const miles = Math.round(result.totalMiles);
+
+    // Update the load record with calculated miles
+    await Airtable.update(CONFIG.TABLES.LOADS, loadId, { 'Miles': miles });
+
+    App.showToast(`Distance calculated: ${miles} miles. Load updated!`, 'success');
+    loadLoadsPage();
+  } catch (err) {
+    App.showToast('Distance calculation failed: ' + err.message, 'danger');
+    console.error(err);
   }
 }

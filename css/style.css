@@ -1516,3 +1516,77 @@ html { scroll-behavior: smooth; }
   border-color: #334155;
   color: #e2e8f0;
 }
+
+/* ============================================================
+   RATE CON IMPORT — AI WORKFLOW STYLES
+   ============================================================ */
+.import-dropzone {
+  border: 2.5px dashed var(--nd-accent);
+  border-radius: var(--nd-radius);
+  padding: 40px 20px;
+  transition: var(--nd-transition);
+  cursor: pointer;
+  background: rgba(82,183,136,.02);
+}
+.import-dropzone:hover,
+.import-dropzone.drag-over {
+  background: rgba(82,183,136,.08);
+  border-color: var(--nd-secondary);
+  transform: scale(1.01);
+}
+
+.ai-progress-dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+}
+.ai-progress-dots span {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--nd-accent);
+  animation: aiDotPulse 1.4s infinite ease-in-out both;
+}
+.ai-progress-dots span:nth-child(1) { animation-delay: -0.32s; }
+.ai-progress-dots span:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes aiDotPulse {
+  0%, 80%, 100% { transform: scale(0.4); opacity: 0.3; }
+  40% { transform: scale(1); opacity: 1; }
+}
+
+/* Pending Approval badge */
+.badge.bg-pending-approval {
+  background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+  color: #fff;
+  animation: pendingPulse 2s infinite;
+}
+@keyframes pendingPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245,158,11,.4); }
+  50% { box-shadow: 0 0 0 6px rgba(245,158,11,0); }
+}
+
+/* btn-xs utility */
+.btn-xs {
+  padding: 1px 6px;
+  font-size: .72rem;
+  line-height: 1.4;
+  border-radius: 4px;
+}
+
+/* Dark theme adjustments for import modal */
+[data-theme="dark"] .import-dropzone {
+  border-color: var(--nd-accent);
+  background: rgba(82,183,136,.04);
+}
+[data-theme="dark"] #importStep3 .form-control,
+[data-theme="dark"] #importStep3 .form-select {
+  background: #1e293b;
+  border-color: #334155;
+  color: #e2e8f0;
+}
+[data-theme="dark"] #importStep3 [style*="background:#f8fafb"],
+[data-theme="dark"] #importStep3 [style*="background: #f8fafb"] {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+}

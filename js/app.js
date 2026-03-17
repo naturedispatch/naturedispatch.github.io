@@ -353,6 +353,7 @@ const App = (() => {
 
   function statusBadge(status) {
     const map = {
+      'Pending Approval': 'bg-pending-approval',
       'New':        'bg-info',
       'Dispatched': 'bg-primary',
       'In Transit': 'bg-warning text-dark',
