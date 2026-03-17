@@ -12,9 +12,11 @@
 const Settings = (() => {
   // ── Storage keys ──────────────────────────────────────────
   const KEYS = {
-    THEME:  'nd_theme',        // 'light' | 'dark'
-    LOGO:   'nd_logo',         // base64 data-URI
-    ACCENT: 'nd_accent_color', // hex string
+    THEME:  'nd_theme',
+    LOGO:   'nd_logo',
+    ACCENT: 'nd_accent_color',
+    GEMINI: 'nd_gemini_key',
+    GMAPS:  'nd_gmaps_key',
   };
 
   // ── Accent color presets ──────────────────────────────────
@@ -33,6 +35,8 @@ const Settings = (() => {
     const savedTheme  = localStorage.getItem(KEYS.THEME) || 'light';
     const savedLogo   = localStorage.getItem(KEYS.LOGO);
     const savedAccent = localStorage.getItem(KEYS.ACCENT) || '#52b788';
+    const savedGemini = localStorage.getItem(KEYS.GEMINI) || '';
+    const savedGmaps  = localStorage.getItem(KEYS.GMAPS) || '';
 
     body.innerHTML = `
       <div class="row g-4">
@@ -46,11 +50,10 @@ const Settings = (() => {
               <a class="nav-link" href="#branding" data-section="branding">
                 <i class="bi bi-image me-2"></i>Branding
               </a>
-              <hr style="margin:8px 0;opacity:.1">
-              <a class="nav-link disabled" href="#" style="opacity:.4">
-                <i class="bi bi-robot me-2"></i>AI futures
-                <span class="badge bg-secondary ms-auto" style="font-size:.65rem">Soon</span>
+              <a class="nav-link" href="#integrations" data-section="integrations">
+                <i class="bi bi-plug me-2"></i>Integrations
               </a>
+              <hr style="margin:8px 0;opacity:.1">
               <a class="nav-link disabled" href="#" style="opacity:.4">
                 <i class="bi bi-shield-lock me-2"></i>Roles & Permissions
                 <span class="badge bg-secondary ms-auto" style="font-size:.65rem">Soon</span>
@@ -130,15 +133,57 @@ const Settings = (() => {
             </div>
           </div>
 
-          <!-- Coming Soon Sections -->
-          <div class="settings-section" style="opacity:.6">
-            <h5><i class="bi bi-robot"></i> AI Assistant <span class="badge bg-secondary ms-2" style="font-size:.7rem">Coming Soon</span></h5>
-            <p style="font-size:.85rem;color:#94a3b8;margin:0">Integration with Google Gemini for smart load suggestions, route optimization, and automated reporting.</p>
+          <!-- Integrations Section -->
+          <div id="section-integrations" class="settings-section">
+            <h5><i class="bi bi-plug"></i> Integrations</h5>
+
+            <!-- Gemini AI -->
+            <div class="mb-4 p-3" style="background:rgba(82,183,136,.04);border-radius:12px;border:1px solid rgba(82,183,136,.08)">
+              <div class="d-flex align-items-center gap-2 mb-2">
+                <i class="bi bi-robot" style="font-size:1.2rem;color:var(--nd-accent)"></i>
+                <div>
+                  <div style="font-weight:700;font-size:.9rem">Google Gemini AI</div>
+                  <div style="font-size:.75rem;color:#94a3b8">Connect Gemini to enable smart features like load summaries, route suggestions, and automated insights.</div>
+                </div>
+              </div>
+              <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-key"></i></span>
+                <input type="password" class="form-control" id="geminiKeyInput" placeholder="Enter your Gemini API Key" value="${savedGemini}">
+                <button class="btn btn-outline-secondary" type="button" id="toggleGeminiKey"><i class="bi bi-eye"></i></button>
+                <button class="btn btn-nd" type="button" id="saveGeminiKey"><i class="bi bi-check-lg"></i></button>
+              </div>
+              <div class="mt-1" style="font-size:.7rem;color:#94a3b8">
+                <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Get your free API key from Google AI Studio <i class="bi bi-box-arrow-up-right"></i></a>
+              </div>
+              ${savedGemini ? '<div class="mt-2"><span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Connected</span></div>' : '<div class="mt-2"><span class="badge bg-secondary">Not configured</span></div>'}
+            </div>
+
+            <!-- Google Maps -->
+            <div class="p-3" style="background:rgba(66,153,225,.04);border-radius:12px;border:1px solid rgba(66,153,225,.08)">
+              <div class="d-flex align-items-center gap-2 mb-2">
+                <i class="bi bi-geo-alt" style="font-size:1.2rem;color:#4299e1"></i>
+                <div>
+                  <div style="font-weight:700;font-size:.9rem">Google Maps API</div>
+                  <div style="font-size:.75rem;color:#94a3b8">Enable distance calculations, route mapping, and address autocomplete.</div>
+                </div>
+              </div>
+              <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-key"></i></span>
+                <input type="password" class="form-control" id="gmapsKeyInput" placeholder="Enter your Google Maps API Key" value="${savedGmaps}">
+                <button class="btn btn-outline-secondary" type="button" id="toggleGmapsKey"><i class="bi bi-eye"></i></button>
+                <button class="btn btn-nd" type="button" id="saveGmapsKey"><i class="bi bi-check-lg"></i></button>
+              </div>
+              <div class="mt-1" style="font-size:.7rem;color:#94a3b8">
+                <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener">Get your API key from Google Cloud Console <i class="bi bi-box-arrow-up-right"></i></a>
+              </div>
+              ${savedGmaps ? '<div class="mt-2"><span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Connected</span></div>' : '<div class="mt-2"><span class="badge bg-secondary">Not configured</span></div>'}
+            </div>
           </div>
 
+          <!-- Coming Soon -->
           <div class="settings-section" style="opacity:.6">
             <h5><i class="bi bi-people"></i> Users & Roles <span class="badge bg-secondary ms-2" style="font-size:.7rem">Coming Soon</span></h5>
-            <p style="font-size:.85rem;color:#94a3b8;margin:0">Manage team members, assign roles (Admin, Dispatcher, Driver, Accounting), and control access permissions.</p>
+            <p style="font-size:.85rem;color:#94a3b8;margin:0">Advanced role-based access control and team management features.</p>
           </div>
         </div>
       </div>
@@ -232,6 +277,29 @@ const Settings = (() => {
           document.getElementById(`section-${section}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
       });
+    });
+
+    // ── Gemini AI key ────────────────────────────────────
+    _bindApiKey('geminiKeyInput', 'toggleGeminiKey', 'saveGeminiKey', KEYS.GEMINI, 'Gemini API key');
+    _bindApiKey('gmapsKeyInput', 'toggleGmapsKey', 'saveGmapsKey', KEYS.GMAPS, 'Google Maps API key');
+  }
+
+  function _bindApiKey(inputId, toggleId, saveId, storageKey, label) {
+    const input = document.getElementById(inputId);
+    const toggleBtn = document.getElementById(toggleId);
+    const saveBtn = document.getElementById(saveId);
+    if (!input || !toggleBtn || !saveBtn) return;
+
+    toggleBtn.addEventListener('click', () => {
+      if (input.type === 'password') { input.type = 'text'; toggleBtn.innerHTML = '<i class="bi bi-eye-slash"></i>'; }
+      else { input.type = 'password'; toggleBtn.innerHTML = '<i class="bi bi-eye"></i>'; }
+    });
+
+    saveBtn.addEventListener('click', () => {
+      const val = input.value.trim();
+      if (val) { localStorage.setItem(storageKey, val); App.showToast(`${label} saved!`, 'success'); }
+      else { localStorage.removeItem(storageKey); App.showToast(`${label} removed`, 'info'); }
+      render();
     });
   }
 

@@ -28,6 +28,19 @@ async function loadDriversPage() {
 
     const drivers = await Airtable.getAll(CONFIG.TABLES.DRIVERS, params);
 
+    const filtersHtml = App.renderTableFilters({
+      searchId: 'driversSearch',
+      filters: [
+        { id: 'filterDriverType', label: 'All Types', options: [
+          {value:'W2',text:'W2'},{value:'1099',text:'1099'},{value:'Owner Operator',text:'Owner Operator'},{value:'Company Driver',text:'Company Driver'}
+        ]},
+        { id: 'filterAvailability', label: 'All Availability', options: [
+          {value:'Available',text:'Available'},{value:'On Load',text:'On Load'},{value:'Off Duty',text:'Off Duty'},
+          {value:'Home Time',text:'Home Time'},{value:'Out of Service',text:'Out of Service'}
+        ]}
+      ]
+    });
+
     body.innerHTML = `
       <div class="d-flex justify-content-between align-items-center mb-3">
         <span class="text-muted">${drivers.length} driver(s)</span>
@@ -36,22 +49,25 @@ async function loadDriversPage() {
           <button class="btn btn-nd" onclick="openNewDriver()"><i class="bi bi-plus-lg me-1"></i>New Driver</button>
         </div>
       </div>
+      ${filtersHtml}
       <div class="table-container">
         <div class="table-responsive">
           <table class="table table-hover align-middle">
             <thead>
               <tr>
-                <th>Full Name</th><th>Company</th><th>Driver Type</th>
+                <th>Full Name</th><th>E-mail</th><th>Phone</th><th>Company</th><th>Driver Type</th>
                 <th>Pay Method</th><th>Assigned Truck</th><th>Availability</th><th class="text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
               ${drivers.map(d => driverRow(d)).join('')}
-              ${drivers.length === 0 ? '<tr><td colspan="7" class="empty-state"><i class="bi bi-person-x"></i><p>No drivers found</p></td></tr>' : ''}
+              ${drivers.length === 0 ? '<tr><td colspan="9" class="empty-state"><i class="bi bi-person-x"></i><p>No drivers found</p></td></tr>' : ''}
             </tbody>
           </table>
         </div>
       </div>`;
+
+    App.bindTableFilters({ searchId: 'driversSearch', filterIds: ['filterDriverType','filterAvailability'] });
   } catch (err) {
     body.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
   }
@@ -73,8 +89,10 @@ function driverRow(rec) {
   const companyName = App.lookupName(_companiesCache, f['Company'], 'Company Name');
   const truckName = App.lookupName(_trucksCache, f['Assigned Truck'], 'Truck Number');
   return `
-  <tr>
+  <tr data-filterDriverType="${f['Driver Type'] || ''}" data-filterAvailability="${f['Availability'] || ''}">
     <td class="fw-semibold">${f['Full Name'] || '—'}</td>
+    <td>${f['E-mail'] || '—'}</td>
+    <td>${f['Phone'] || '—'}</td>
     <td>${companyName}</td>
     <td>${f['Driver Type'] || '—'}</td>
     <td>${f['Pay Method'] || '—'}</td>
@@ -103,7 +121,11 @@ async function openEditDriver(id) {
     document.getElementById('driverModalTitle').textContent = `Edit — ${f['Full Name'] || ''}`;
     document.getElementById('driverRecordId').value = rec.id;
     document.getElementById('driverName').value       = f['Full Name'] || '';
-    document.getElementById('driverType').value       = f['Driver Type'] || 'Company Driver';
+    document.getElementById('driverEmail').value      = f['E-mail'] || '';
+    document.getElementById('driverPhone').value      = f['Phone'] || '';
+    document.getElementById('driverZip').value        = f['Zip Code'] || '';
+    document.getElementById('driverHireDate').value   = f['Hire Date'] || '';
+    document.getElementById('driverType').value       = f['Driver Type'] || '';
     document.getElementById('driverPayMethod').value  = f['Pay Method'] || 'Per Mile';
     const cid = Array.isArray(f['Company']) ? f['Company'][0] : f['Company'] || '';
     document.getElementById('driverCompany').value = cid;
@@ -124,7 +146,11 @@ async function saveDriver() {
   const id = document.getElementById('driverRecordId').value;
   const fields = {
     'Full Name':    document.getElementById('driverName').value.trim(),
-    'Driver Type':  document.getElementById('driverType').value,
+    'E-mail':       document.getElementById('driverEmail').value.trim() || null,
+    'Phone':        document.getElementById('driverPhone').value.trim() || null,
+    'Zip Code':     document.getElementById('driverZip').value.trim() || null,
+    'Hire Date':    document.getElementById('driverHireDate').value || null,
+    'Driver Type':  document.getElementById('driverType').value || null,
     'Pay Method':   document.getElementById('driverPayMethod').value,
     'Availability': document.getElementById('driverAvailability').value || null,
   };

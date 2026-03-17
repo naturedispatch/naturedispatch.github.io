@@ -43,6 +43,8 @@ async function loadExpensesPage() {
 
     const totalAmount = all.reduce((s, r) => s + (parseFloat(r.fields['Amount']) || 0), 0);
 
+    const expFilters = App.renderTableFilters({ searchId: 'expSearch', dateId: 'expDate' });
+
     body.innerHTML = `
       <div class="d-flex justify-content-between align-items-center mb-3">
         <div>
@@ -54,6 +56,7 @@ async function loadExpensesPage() {
           <button class="btn btn-nd" onclick="openNewExpense()"><i class="bi bi-plus-lg me-1"></i>New Expense</button>
         </div>
       </div>
+      ${expFilters}
 
       <!-- Category tabs -->
       <ul class="nav nav-tabs mb-3">
@@ -76,6 +79,8 @@ async function loadExpensesPage() {
       </div></div>`;
 
     window._allExpenses = all;
+
+    App.bindTableFilters({ searchId: 'expSearch', dateId: 'expDate', tableSelector: '#expTableBody' });
   } catch (err) { body.innerHTML = `<div class="alert alert-danger">${err.message}</div>`; }
 }
 

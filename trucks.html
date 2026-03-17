@@ -14,7 +14,7 @@
 
   <!-- Truck Modal -->
   <div class="modal fade" id="truckModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title" id="truckModalTitle">New Truck</h5>
@@ -23,25 +23,72 @@
         <div class="modal-body">
           <form id="truckForm">
             <input type="hidden" id="truckRecordId">
-            <div class="mb-3">
-              <label class="form-label">Truck Number *</label>
-              <input type="text" class="form-control" id="truckNumber" required>
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Company *</label>
-              <select class="form-select" id="truckCompany" required><option value="">Select…</option></select>
-            </div>
-            <div class="mb-3">
-              <label class="form-label">VIN / Plate</label>
-              <input type="text" class="form-control" id="truckVin">
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Status</label>
-              <select class="form-select" id="truckStatus">
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
-                <option value="In Maintenance">In Maintenance</option>
-              </select>
+            <div class="row g-3">
+              <!-- Row 1: Identification -->
+              <div class="col-md-4">
+                <label class="form-label">Truck Number *</label>
+                <input type="text" class="form-control" id="truckNumber" required>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Company *</label>
+                <select class="form-select" id="truckCompany" required><option value="">Select…</option></select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Current Status</label>
+                <select class="form-select" id="truckStatus">
+                  <option value="Actif">Actif</option>
+                  <option value="Maintenance">Maintenance</option>
+                  <option value="Hors service">Hors service</option>
+                </select>
+              </div>
+              <!-- Row 2: Vehicle Info -->
+              <div class="col-md-4">
+                <label class="form-label">VIN / Plate</label>
+                <input type="text" class="form-control" id="truckVin">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">License Plate</label>
+                <input type="text" class="form-control" id="truckLicensePlate" placeholder="ABC-1234">
+              </div>
+              <div class="col-md-2">
+                <label class="form-label">Year</label>
+                <input type="number" class="form-control" id="truckYear" placeholder="2024" min="1990" max="2030">
+              </div>
+              <div class="col-md-2">
+                <label class="form-label">Model</label>
+                <input type="text" class="form-control" id="truckModel" placeholder="e.g. Freightliner">
+              </div>
+              <!-- Row 3: Regulatory -->
+              <div class="col-md-4">
+                <label class="form-label">DOT Number</label>
+                <input type="text" class="form-control" id="truckDOT">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">MC Number</label>
+                <input type="text" class="form-control" id="truckMC">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">ELD Provider</label>
+                <input type="text" class="form-control" id="truckELD" placeholder="e.g. KeepTruckin, Samsara">
+              </div>
+              <!-- Row 4: Dates -->
+              <div class="col-md-4">
+                <label class="form-label">Insurance Expiration</label>
+                <input type="date" class="form-control" id="truckInsuranceExp">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">IFTA Expiration</label>
+                <input type="date" class="form-control" id="truckIFTAExp">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Annual Inspection</label>
+                <input type="date" class="form-control" id="truckAnnualInsp">
+              </div>
+              <!-- Row 5: Notes -->
+              <div class="col-12">
+                <label class="form-label">Notes</label>
+                <textarea class="form-control" id="truckNotes" rows="2" placeholder="Additional notes…"></textarea>
+              </div>
             </div>
           </form>
         </div>

@@ -40,7 +40,6 @@ const App = (() => {
     const links = [
       { href: 'index.html',       icon: 'bi-speedometer2',    label: 'Dashboard',          key: 'dashboard' },
       { href: 'loads.html',       icon: 'bi-box-seam',        label: 'Loads',              key: 'loads' },
-      { href: 'pipeline.html',   icon: 'bi-kanban',          label: 'Pipeline',           key: 'pipeline' },
       { href: 'drivers.html',     icon: 'bi-person-badge',    label: 'Drivers',            key: 'drivers' },
       { href: 'trucks.html',      icon: 'bi-truck',           label: 'Trucks & Trailers',  key: 'trucks' },
       { href: 'brokers.html',     icon: 'bi-building',        label: 'Brokers',            key: 'brokers' },
@@ -137,6 +136,13 @@ const App = (() => {
         <h4 class="mb-0">${pageTitle}</h4>
       </div>
       <div class="d-flex align-items-center gap-3">
+        <!-- Global Search -->
+        <div class="position-relative d-none d-md-block" id="globalSearchWrap">
+          <i class="bi bi-search" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:.82rem"></i>
+          <input type="text" id="globalSearchInput" class="form-control form-control-sm" placeholder="Search pages…"
+            style="width:200px;padding-left:34px;border-radius:10px;border:1.5px solid #e2e8f0;font-size:.82rem;background:#f8fafb">
+          <div id="globalSearchResults" class="global-search-dropdown" style="display:none"></div>
+        </div>
         <div class="d-flex align-items-center gap-2" style="background:#f8fafb;padding:4px 6px 4px 12px;border-radius:10px;border:1.5px solid #e2e8f0">
           <i class="bi bi-building" style="color:var(--nd-secondary);font-size:.85rem"></i>
           <select id="companyFilter" class="form-select form-select-sm" style="width:180px;border:none;background:transparent;font-size:.82rem;font-weight:600;padding:4px 8px;box-shadow:none">
@@ -206,6 +212,44 @@ const App = (() => {
       overlay.addEventListener('click', () => {
         document.body.classList.remove('sidebar-mobile-open');
       });
+
+      // ── Global Search ──────────────────────────────────
+      const gInput = document.getElementById('globalSearchInput');
+      const gResults = document.getElementById('globalSearchResults');
+      if (gInput && gResults) {
+        const _pages = [
+          { href:'index.html',       label:'Dashboard',        icon:'bi-speedometer2',       keys:'dashboard home' },
+          { href:'loads.html',       label:'Loads',            icon:'bi-box-seam',           keys:'loads shipments freight' },
+          { href:'drivers.html',     label:'Drivers',          icon:'bi-person-badge',       keys:'drivers employees' },
+          { href:'trucks.html',      label:'Trucks & Trailers',icon:'bi-truck',              keys:'trucks trailers fleet' },
+          { href:'brokers.html',     label:'Brokers',          icon:'bi-building',           keys:'brokers customers' },
+          { href:'documents.html',   label:'Documents',        icon:'bi-file-earmark-check', keys:'documents files papers' },
+          { href:'settlements.html', label:'Settlements',      icon:'bi-calculator',         keys:'settlements pay payroll' },
+          { href:'expenses.html',    label:'Expenses',         icon:'bi-receipt',            keys:'expenses costs fuel tolls' },
+          { href:'alerts.html',      label:'Alerts',           icon:'bi-bell',               keys:'alerts notifications' },
+          { href:'reports.html',     label:'Reports',          icon:'bi-graph-up',           keys:'reports analytics' },
+          { href:'settings.html',    label:'Settings',         icon:'bi-gear',               keys:'settings preferences integrations api' },
+          { href:'users.html',       label:'Users',            icon:'bi-people',             keys:'users accounts permissions' },
+        ];
+        gInput.addEventListener('input', () => {
+          const q = gInput.value.trim().toLowerCase();
+          if (!q) { gResults.style.display = 'none'; return; }
+          const matches = _pages.filter(p => p.label.toLowerCase().includes(q) || p.keys.includes(q));
+          if (!matches.length) {
+            gResults.innerHTML = '<div class="px-3 py-2 text-muted" style="font-size:.82rem">No pages found</div>';
+          } else {
+            gResults.innerHTML = matches.map(p =>
+              `<a href="${p.href}" class="d-flex align-items-center gap-2 px-3 py-2 text-decoration-none global-search-item">
+                <i class="bi ${p.icon}" style="font-size:.9rem;color:var(--nd-accent)"></i>
+                <span style="font-size:.85rem;font-weight:500">${p.label}</span>
+              </a>`
+            ).join('');
+          }
+          gResults.style.display = 'block';
+        });
+        gInput.addEventListener('blur', () => setTimeout(() => gResults.style.display = 'none', 200));
+        gInput.addEventListener('focus', () => { if (gInput.value.trim()) gInput.dispatchEvent(new Event('input')); });
+      }
 
       // Company filter change handler
       document.getElementById('companyFilter').addEventListener('change', (e) => {
@@ -384,6 +428,86 @@ const App = (() => {
     }
   }
 
+  /**
+   * Build a filter/search bar HTML string for table pages.
+   * @param {Object} opts – { searchId, filters: [{ id, label, options: [{value,text}] }], dateId }
+   * @returns {string} HTML
+   */
+  function renderTableFilters(opts = {}) {
+    const { searchId = 'tableSearch', filters = [], dateId } = opts;
+    let html = `<div class="table-filters d-flex flex-wrap align-items-center gap-2 mb-3">`;
+    html += `<div class="position-relative flex-grow-1" style="max-width:300px">
+      <i class="bi bi-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:.8rem"></i>
+      <input type="text" id="${searchId}" class="form-control form-control-sm" placeholder="Search table…"
+        style="padding-left:32px;border-radius:8px;border:1.5px solid #e2e8f0;font-size:.82rem">
+    </div>`;
+    for (const f of filters) {
+      const optionsHtml = f.options.map(o => `<option value="${o.value}">${o.text}</option>`).join('');
+      html += `<select id="${f.id}" class="form-select form-select-sm" style="width:auto;min-width:120px;border-radius:8px;font-size:.82rem;border:1.5px solid #e2e8f0">
+        <option value="">${f.label}</option>${optionsHtml}
+      </select>`;
+    }
+    if (dateId) {
+      html += `<input type="date" id="${dateId}From" class="form-control form-control-sm" style="width:140px;border-radius:8px;font-size:.82rem;border:1.5px solid #e2e8f0" title="From date">`;
+      html += `<input type="date" id="${dateId}To" class="form-control form-control-sm" style="width:140px;border-radius:8px;font-size:.82rem;border:1.5px solid #e2e8f0" title="To date">`;
+    }
+    html += `</div>`;
+    return html;
+  }
+
+  /**
+   * Attach client-side search/filter event listeners.
+   * @param {Object} opts – { searchId, filterIds:[], dateId, tableSelector, getRowText(tr), getRowDate(tr), getRowFilters(tr,filterId) }
+   */
+  function bindTableFilters(opts = {}) {
+    const { searchId = 'tableSearch', filterIds = [], dateId, tableSelector = '.table tbody' } = opts;
+    const _apply = () => {
+      const tbody = document.querySelector(tableSelector);
+      if (!tbody) return;
+      const rows = tbody.querySelectorAll('tr');
+      const q = (document.getElementById(searchId)?.value || '').toLowerCase();
+      const filterVals = {};
+      filterIds.forEach(fid => { filterVals[fid] = (document.getElementById(fid)?.value || ''); });
+      const dateFrom = dateId ? (document.getElementById(dateId + 'From')?.value || '') : '';
+      const dateTo   = dateId ? (document.getElementById(dateId + 'To')?.value || '') : '';
+
+      rows.forEach(tr => {
+        if (tr.querySelector('.empty-state')) return;
+        const text = tr.textContent.toLowerCase();
+        let show = !q || text.includes(q);
+
+        // Filter by select dropdowns
+        for (const fid of filterIds) {
+          if (!filterVals[fid]) continue;
+          const cell = tr.getAttribute('data-' + fid);
+          if (cell && cell !== filterVals[fid]) show = false;
+        }
+
+        // Filter by date range
+        if (show && dateId && (dateFrom || dateTo)) {
+          const rowDate = tr.getAttribute('data-date') || '';
+          if (dateFrom && rowDate < dateFrom) show = false;
+          if (dateTo && rowDate > dateTo) show = false;
+        }
+
+        tr.style.display = show ? '' : 'none';
+      });
+    };
+
+    const searchEl = document.getElementById(searchId);
+    if (searchEl) searchEl.addEventListener('input', _apply);
+    filterIds.forEach(fid => {
+      const el = document.getElementById(fid);
+      if (el) el.addEventListener('change', _apply);
+    });
+    if (dateId) {
+      const f = document.getElementById(dateId + 'From');
+      const t = document.getElementById(dateId + 'To');
+      if (f) f.addEventListener('change', _apply);
+      if (t) t.addEventListener('change', _apply);
+    }
+  }
+
   return {
     init,
     getCurrentCompany,
@@ -397,5 +521,7 @@ const App = (() => {
     lookupName,
     fillSelect,
     withLoading,
+    renderTableFilters,
+    bindTableFilters,
   };
 })();

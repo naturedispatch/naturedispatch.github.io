@@ -23,6 +23,16 @@ async function loadTrucksPage() {
 
     const trucks = await Airtable.getAll(CONFIG.TABLES.TRUCKS, params);
 
+    const trucksFilters = App.renderTableFilters({
+      searchId: 'trucksSearch',
+      filters: [
+        { id: 'filterTruckStatus', label: 'All Status', options: [
+          {value:'Actif',text:'Actif'},{value:'Maintenance',text:'Maintenance'},{value:'Hors service',text:'Hors service'},
+          {value:'Active',text:'Active'},{value:'Inactive',text:'Inactive'},{value:'In Maintenance',text:'In Maintenance'}
+        ]}
+      ]
+    });
+
     body.innerHTML = `
       <div class="d-flex justify-content-between align-items-center mb-3">
         <span class="text-muted">${trucks.length} truck(s)</span>
@@ -31,17 +41,25 @@ async function loadTrucksPage() {
           <button class="btn btn-nd" onclick="openNewTruck()"><i class="bi bi-plus-lg me-1"></i>New Truck</button>
         </div>
       </div>
+      ${trucksFilters}
       <div class="table-container"><div class="table-responsive">
         <table class="table table-hover align-middle">
-          <thead><tr><th>Truck #</th><th>Company</th><th>VIN / Plate</th><th>Status</th><th class="text-center">Actions</th></tr></thead>
+          <thead><tr>
+            <th>Truck #</th><th>Company</th><th>Model</th><th>Year</th>
+            <th>DOT #</th><th>ELD</th><th>Status</th><th class="text-center">Actions</th>
+          </tr></thead>
           <tbody>
             ${trucks.map(r => {
               const f = r.fields;
-              const stCls = f['Status'] === 'Active' ? 'bg-success' : f['Status'] === 'In Maintenance' ? 'bg-warning text-dark' : 'bg-secondary';
-              return `<tr>
+              const stMap = { 'Actif': 'bg-success', 'Maintenance': 'bg-warning text-dark', 'Hors service': 'bg-danger', 'Active': 'bg-success', 'Inactive': 'bg-secondary', 'In Maintenance': 'bg-warning text-dark' };
+              const stCls = stMap[f['Status']] || 'bg-secondary';
+              return `<tr data-filterTruckStatus="${f['Status'] || ''}">
                 <td class="fw-semibold">${f['Truck Number'] || '—'}</td>
                 <td>${App.lookupName(_coCache, f['Company'], 'Company Name')}</td>
-                <td><small>${f['VIN / Plate'] || '—'}</small></td>
+                <td>${f['Model'] || '—'}</td>
+                <td>${f['Year'] || '—'}</td>
+                <td><small>${f['DOT Number'] || '—'}</small></td>
+                <td><small>${f['ELD Provider'] || '—'}</small></td>
                 <td><span class="badge ${stCls}">${f['Status'] || 'N/A'}</span></td>
                 <td class="text-center text-nowrap">
                   <button class="btn btn-sm btn-action btn-outline-secondary me-1" onclick="openEditTruck('${r.id}')"><i class="bi bi-pencil"></i></button>
@@ -49,10 +67,12 @@ async function loadTrucksPage() {
                 </td>
               </tr>`;
             }).join('')}
-            ${trucks.length === 0 ? '<tr><td colspan="5" class="empty-state"><i class="bi bi-truck"></i><p>No trucks found</p></td></tr>' : ''}
+            ${trucks.length === 0 ? '<tr><td colspan="8" class="empty-state"><i class="bi bi-truck"></i><p>No trucks found</p></td></tr>' : ''}
           </tbody>
         </table>
       </div></div>`;
+
+    App.bindTableFilters({ searchId: 'trucksSearch', filterIds: ['filterTruckStatus'] });
   } catch (err) {
     body.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
   }
@@ -73,9 +93,19 @@ async function openEditTruck(id) {
     const f = rec.fields;
     document.getElementById('truckModalTitle').textContent = 'Edit Truck';
     document.getElementById('truckRecordId').value = rec.id;
-    document.getElementById('truckNumber').value  = f['Truck Number'] || '';
-    document.getElementById('truckVin').value     = f['VIN / Plate'] || '';
-    document.getElementById('truckStatus').value  = f['Status'] || 'Active';
+    document.getElementById('truckNumber').value       = f['Truck Number'] || '';
+    document.getElementById('truckVin').value          = f['VIN / Plate'] || '';
+    document.getElementById('truckLicensePlate').value = f['License Plate'] || '';
+    document.getElementById('truckYear').value         = f['Year'] || '';
+    document.getElementById('truckModel').value        = f['Model'] || '';
+    document.getElementById('truckDOT').value          = f['DOT Number'] || '';
+    document.getElementById('truckMC').value           = f['MC Number'] || '';
+    document.getElementById('truckELD').value          = f['ELD Provider'] || '';
+    document.getElementById('truckInsuranceExp').value = f['Insurance Expiration Date'] || '';
+    document.getElementById('truckIFTAExp').value      = f['IFTA Expiration Date'] || '';
+    document.getElementById('truckAnnualInsp').value   = f['Annual Inspection Date'] || '';
+    document.getElementById('truckNotes').value        = f['Notes'] || '';
+    document.getElementById('truckStatus').value       = f['Status'] || 'Actif';
     const cid = Array.isArray(f['Company']) ? f['Company'][0] : f['Company'] || '';
     document.getElementById('truckCompany').value = cid;
     new bootstrap.Modal(document.getElementById('truckModal')).show();
@@ -92,9 +122,19 @@ async function saveTruck() {
   const id = document.getElementById('truckRecordId').value;
 
   const fields = {
-    'Truck Number': document.getElementById('truckNumber').value.trim(),
-    'VIN / Plate':  document.getElementById('truckVin').value.trim(),
-    Status:         document.getElementById('truckStatus').value,
+    'Truck Number':             document.getElementById('truckNumber').value.trim(),
+    'VIN / Plate':              document.getElementById('truckVin').value.trim(),
+    'License Plate':            document.getElementById('truckLicensePlate').value.trim() || null,
+    'Year':                     parseInt(document.getElementById('truckYear').value) || null,
+    'Model':                    document.getElementById('truckModel').value.trim() || null,
+    'DOT Number':               document.getElementById('truckDOT').value.trim() || null,
+    'MC Number':                document.getElementById('truckMC').value.trim() || null,
+    'ELD Provider':             document.getElementById('truckELD').value.trim() || null,
+    'Insurance Expiration Date': document.getElementById('truckInsuranceExp').value || null,
+    'IFTA Expiration Date':     document.getElementById('truckIFTAExp').value || null,
+    'Annual Inspection Date':   document.getElementById('truckAnnualInsp').value || null,
+    'Notes':                    document.getElementById('truckNotes').value.trim() || null,
+    Status:                     document.getElementById('truckStatus').value,
   };
   const co = document.getElementById('truckCompany').value;
   if (co) fields['Company'] = [co];

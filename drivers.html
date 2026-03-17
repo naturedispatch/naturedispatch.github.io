@@ -14,7 +14,7 @@
 
   <!-- Driver Modal -->
   <div class="modal fade" id="driverModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title" id="driverModalTitle">New Driver</h5>
@@ -23,47 +23,71 @@
         <div class="modal-body">
           <form id="driverForm">
             <input type="hidden" id="driverRecordId">
-            <div class="mb-3">
-              <label class="form-label">Full Name *</label>
-              <input type="text" class="form-control" id="driverName" required>
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Company *</label>
-              <select class="form-select" id="driverCompany" required>
-                <option value="">Select…</option>
-              </select>
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Driver Type</label>
-              <select class="form-select" id="driverType">
-                <option value="Company Driver">Company Driver</option>
-                <option value="Owner Operator">Owner Operator</option>
-              </select>
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Pay Method</label>
-              <select class="form-select" id="driverPayMethod">
-                <option value="Per Mile">Per Mile</option>
-                <option value="Percentage">Percentage</option>
-                <option value="Flat Rate">Flat Rate</option>
-              </select>
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Assigned Truck</label>
-              <select class="form-select" id="driverTruck">
-                <option value="">Select…</option>
-              </select>
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Availability</label>
-              <select class="form-select" id="driverAvailability">
-                <option value="">Select…</option>
-                <option value="Available">Available</option>
-                <option value="On Load">On Load</option>
-                <option value="Off Duty">Off Duty</option>
-                <option value="Home Time">Home Time</option>
-                <option value="Out of Service">Out of Service</option>
-              </select>
+            <div class="row g-3">
+              <!-- Row 1 -->
+              <div class="col-md-6">
+                <label class="form-label">Full Name *</label>
+                <input type="text" class="form-control" id="driverName" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">E-mail</label>
+                <input type="email" class="form-control" id="driverEmail" placeholder="driver@example.com">
+              </div>
+              <!-- Row 2 -->
+              <div class="col-md-4">
+                <label class="form-label">Phone Number</label>
+                <input type="tel" class="form-control" id="driverPhone" placeholder="(555) 123-4567">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Zip Code</label>
+                <input type="text" class="form-control" id="driverZip" placeholder="12345">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Hire Date</label>
+                <input type="date" class="form-control" id="driverHireDate">
+              </div>
+              <!-- Row 3 -->
+              <div class="col-md-6">
+                <label class="form-label">Company *</label>
+                <select class="form-select" id="driverCompany" required>
+                  <option value="">Select…</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Driver Type</label>
+                <select class="form-select" id="driverType">
+                  <option value="">Select…</option>
+                  <option value="W2">W2</option>
+                  <option value="1099">1099</option>
+                  <option value="Owner Operator">Owner Operator</option>
+                </select>
+              </div>
+              <!-- Row 4 -->
+              <div class="col-md-4">
+                <label class="form-label">Pay Method</label>
+                <select class="form-select" id="driverPayMethod">
+                  <option value="Per Mile">Per Mile</option>
+                  <option value="Percentage">Percentage</option>
+                  <option value="Flat Rate">Flat Rate</option>
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Assigned Truck</label>
+                <select class="form-select" id="driverTruck">
+                  <option value="">Select…</option>
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Availability</label>
+                <select class="form-select" id="driverAvailability">
+                  <option value="">Select…</option>
+                  <option value="Available">Available</option>
+                  <option value="On Load">On Load</option>
+                  <option value="Off Duty">Off Duty</option>
+                  <option value="Home Time">Home Time</option>
+                  <option value="Out of Service">Out of Service</option>
+                </select>
+              </div>
             </div>
           </form>
         </div>

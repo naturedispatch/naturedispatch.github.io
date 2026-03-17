@@ -22,6 +22,8 @@ async function loadSettlementsPage() {
 
     const settlements = await Airtable.getAll(CONFIG.TABLES.SETTLEMENTS, params);
 
+    const settFilters = App.renderTableFilters({ searchId: 'settSearch', dateId: 'settDate' });
+
     body.innerHTML = `
       <div class="d-flex justify-content-between align-items-center mb-3">
         <span class="text-muted">${settlements.length} settlement(s)</span>
@@ -30,6 +32,7 @@ async function loadSettlementsPage() {
           <button class="btn btn-nd" onclick="openNewSettlement()"><i class="bi bi-plus-lg me-1"></i>New Settlement</button>
         </div>
       </div>
+      ${settFilters}
       <div class="table-container"><div class="table-responsive">
         <table class="table table-hover align-middle">
           <thead><tr>
@@ -43,6 +46,8 @@ async function loadSettlementsPage() {
           </tbody>
         </table>
       </div></div>`;
+
+    App.bindTableFilters({ searchId: 'settSearch', dateId: 'settDate' });
   } catch (err) { body.innerHTML = `<div class="alert alert-danger">${err.message}</div>`; }
 }
 
@@ -56,7 +61,7 @@ function settlementRow(rec) {
 
   const driverName = App.lookupName(_sDrivers, f['Driver']);
 
-  return `<tr>
+  return `<tr data-date="${f['Week Ending'] || ''}">
     <td class="fw-semibold">${App.formatDate(f['Week Ending'])}</td>
     <td>${driverName}</td>
     <td>${App.formatCurrency(revenue)}</td>
@@ -65,6 +70,7 @@ function settlementRow(rec) {
     <td class="text-danger">${App.formatCurrency(expenses)}</td>
     <td class="fw-bold text-success">${App.formatCurrency(net)}</td>
     <td class="text-center text-nowrap">
+      <button class="btn btn-sm btn-action btn-outline-info me-1" onclick="openSettlementDetail('${rec.id}')" title="View Details"><i class="bi bi-eye"></i></button>
       <button class="btn btn-sm btn-action btn-outline-secondary me-1" onclick="openEditSettlement('${rec.id}')"><i class="bi bi-pencil"></i></button>
       <button class="btn btn-sm btn-action btn-outline-danger" onclick="deleteSettlement('${rec.id}')"><i class="bi bi-trash"></i></button>
     </td>
@@ -119,4 +125,62 @@ async function deleteSettlement(id) {
   if (!confirm('Delete this settlement?')) return;
   try { await Airtable.remove(CONFIG.TABLES.SETTLEMENTS, id); App.showToast('Deleted.'); loadSettlementsPage(); }
   catch (err) { App.showToast(err.message, 'danger'); }
+}
+
+// ── Settlement Detail View ──────────────────────────────────
+async function openSettlementDetail(id) {
+  const modal = new bootstrap.Modal(document.getElementById('settlementDetailModal'));
+  modal.show();
+  const body = document.getElementById('settlementDetailBody');
+  body.innerHTML = '<div class="text-center py-4"><div class="spinner-border"></div></div>';
+
+  try {
+    const rec = await Airtable.getOne(CONFIG.TABLES.SETTLEMENTS, id);
+    const f = rec.fields;
+
+    const driverName = App.lookupName(_sDrivers, f['Driver']);
+    const revenue  = parseFloat(f['Total Gross Revenue']) || 0;
+    const fuel     = parseFloat(f['Total Fuel']) || 0;
+    const tolls    = parseFloat(f['Total Tolls']) || 0;
+    const expenses = parseFloat(f['Total Expenses']) || 0;
+    const net      = parseFloat(f['Net Pay']) || (revenue - fuel - tolls - expenses);
+    const _c = App.formatCurrency;
+
+    body.innerHTML = `
+      <div class="row g-4">
+        <div class="col-md-6">
+          <h6 class="text-muted text-uppercase mb-3" style="font-size:.72rem;letter-spacing:1px">Settlement Info</h6>
+          <div class="row g-2">
+            <div class="col-6"><strong>Week Ending</strong><div>${App.formatDate(f['Week Ending'])}</div></div>
+            <div class="col-6"><strong>Driver</strong><div>${driverName}</div></div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <h6 class="text-muted text-uppercase mb-3" style="font-size:.72rem;letter-spacing:1px">Financial Summary</h6>
+          <div class="row g-2">
+            <div class="col-6"><strong>Gross Revenue</strong><div class="fs-5 fw-bold">${_c(revenue)}</div></div>
+            <div class="col-6"><strong class="text-success">Net Pay</strong><div class="fs-5 fw-bold text-success">${_c(net)}</div></div>
+          </div>
+          <hr>
+          <div class="row g-2">
+            <div class="col-4"><strong class="text-danger">Fuel</strong><div class="text-danger">${_c(fuel)}</div></div>
+            <div class="col-4"><strong class="text-danger">Tolls</strong><div class="text-danger">${_c(tolls)}</div></div>
+            <div class="col-4"><strong class="text-danger">Expenses</strong><div class="text-danger">${_c(expenses)}</div></div>
+          </div>
+        </div>
+      </div>
+      <hr>
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <strong>Total Deductions:</strong> <span class="text-danger fw-bold">${_c(fuel + tolls + expenses)}</span>
+        </div>
+        <div class="px-3 py-2 rounded" style="background:rgba(82,183,136,.08)">
+          <strong>Net Pay:</strong> <span class="text-success fw-bold fs-5">${_c(net)}</span>
+        </div>
+      </div>`;
+
+    document.getElementById('settlementDetailTitle').textContent = `Settlement — ${App.formatDate(f['Week Ending'])}`;
+  } catch (err) {
+    body.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
+  }
 }

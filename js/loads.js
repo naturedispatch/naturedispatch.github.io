@@ -40,6 +40,21 @@ async function loadLoadsPage() {
     const loads = await Airtable.getAll(CONFIG.TABLES.LOADS, params);
 
     // ── Render table ────────────────────────────────────────
+    const filtersHtml = App.renderTableFilters({
+      searchId: 'loadsSearch',
+      dateId: 'loadsDate',
+      filters: [
+        { id: 'filterStatus', label: 'All Status', options: [
+          {value:'New',text:'New'},{value:'Dispatched',text:'Dispatched'},{value:'In Transit',text:'In Transit'},
+          {value:'Delivered',text:'Delivered'},{value:'Invoiced',text:'Invoiced'},{value:'Paid',text:'Paid'},{value:'Cancelled',text:'Cancelled'}
+        ]},
+        { id: 'filterInvoice', label: 'All Invoice', options: [
+          {value:'Not Ready',text:'Not Ready'},{value:'Docs Missing',text:'Docs Missing'},{value:'Ready to Invoice',text:'Ready to Invoice'},
+          {value:'Invoiced',text:'Invoiced'},{value:'Paid',text:'Paid'},{value:'Disputed',text:'Disputed'}
+        ]}
+      ]
+    });
+
     body.innerHTML = `
       <div class="d-flex justify-content-between align-items-center mb-3">
         <div>
@@ -53,7 +68,7 @@ async function loadLoadsPage() {
           </button>
         </div>
       </div>
-
+      ${filtersHtml}
       <div class="table-container">
         <div class="table-responsive">
           <table class="table table-hover align-middle">
@@ -79,6 +94,9 @@ async function loadLoadsPage() {
           </table>
         </div>
       </div>`;
+
+    // Bind filter events
+    App.bindTableFilters({ searchId: 'loadsSearch', filterIds: ['filterStatus','filterInvoice'], dateId: 'loadsDate' });
   } catch (err) {
     body.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
     console.error(err);
@@ -125,7 +143,7 @@ function etaDisplay(eta) {
 function loadRow(rec) {
   const f = rec.fields;
   return `
-  <tr>
+  <tr data-filterStatus="${f['Status'] || ''}" data-filterInvoice="${f['Invoice Status'] || ''}" data-date="${f['Pickup Date'] || f['ETA'] || ''}">
     <td class="fw-semibold">${f['Load Number'] || '—'}</td>
     <td>${App.lookupName(_companies, f['Company'])}</td>
     <td>${App.lookupName(_brokers, f['Brokers/Shippers'])}</td>
@@ -137,6 +155,10 @@ function loadRow(rec) {
     <td>${invoiceBadge(f['Invoice Status'])}</td>
     <td>${App.statusBadge(f['Status'])}</td>
     <td class="text-center text-nowrap">
+      <button class="btn btn-sm btn-action btn-outline-info me-1" title="View Details"
+        onclick="openLoadDetail('${rec.id}')">
+        <i class="bi bi-eye"></i>
+      </button>
       <button class="btn btn-sm btn-action btn-outline-primary me-1" title="Stops"
         onclick="openStops('${rec.id}', '${(f['Load Number'] || '').replace(/'/g, "\\'")}')">
         <i class="bi bi-geo-alt"></i>
@@ -503,5 +525,93 @@ async function deleteStop(stopId) {
     openStops(_currentLoadId, document.getElementById('stopsLoadNum').textContent);
   } catch (err) {
     App.showToast('Delete failed: ' + err.message, 'danger');
+  }
+}
+
+// ── Load Detail View ─────────────────────────────────────────
+async function openLoadDetail(id) {
+  const modal = new bootstrap.Modal(document.getElementById('loadDetailModal'));
+  modal.show();
+  const body = document.getElementById('loadDetailBody');
+  body.innerHTML = '<div class="text-center py-4"><div class="spinner-border"></div></div>';
+
+  try {
+    const rec = await Airtable.getOne(CONFIG.TABLES.LOADS, id);
+    const f = rec.fields;
+
+    const companyName = App.lookupName(_companies, f['Company']);
+    const brokerName  = App.lookupName(_brokers, f['Brokers/Shippers']);
+    const driverName  = App.lookupName(_drivers, f['Driver']);
+    const truckName   = App.lookupName(_trucks, f['Truck']);
+
+    // Fetch load stops
+    let stops = [];
+    try {
+      const allStops = await Airtable.getAll(CONFIG.TABLES.LOAD_STOPS, {
+        filterByFormula: `FIND("${id}", ARRAYJOIN({Load Link}))`,
+        'sort[0][field]': 'Stop Sequence', 'sort[0][direction]': 'asc'
+      });
+      stops = allStops;
+    } catch (_) {}
+
+    const _d = (v) => App.formatDate(v);
+    const _c = (v) => App.formatCurrency(v);
+    const _docLink = (arr, label) => {
+      if (!arr || !arr.length) return `<span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>${label} Missing</span>`;
+      return `<a href="${arr[0].url}" target="_blank" class="badge bg-success text-decoration-none"><i class="bi bi-file-earmark-check me-1"></i>${label}</a>`;
+    };
+
+    body.innerHTML = `
+      <div class="row g-4">
+        <!-- Left: Load Info -->
+        <div class="col-lg-7">
+          <h6 class="text-muted text-uppercase mb-3" style="font-size:.72rem;letter-spacing:1px">Load Information</h6>
+          <div class="row g-2 mb-3">
+            <div class="col-6"><strong>Load #</strong><div>${f['Load Number'] || '—'}</div></div>
+            <div class="col-6"><strong>Status</strong><div>${App.statusBadge(f['Status'])}</div></div>
+            <div class="col-6"><strong>Company</strong><div>${companyName}</div></div>
+            <div class="col-6"><strong>Broker</strong><div>${brokerName}</div></div>
+            <div class="col-6"><strong>Driver</strong><div>${driverName}</div></div>
+            <div class="col-6"><strong>Truck</strong><div>${truckName}</div></div>
+          </div>
+          <hr>
+          <div class="row g-2 mb-3">
+            <div class="col-4"><strong>Pickup</strong><div>${_d(f['Pickup Date'])}</div></div>
+            <div class="col-4"><strong>Delivery</strong><div>${_d(f['Delivery Date'])}</div></div>
+            <div class="col-4"><strong>ETA</strong><div>${etaDisplay(f['ETA'])}</div></div>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-4"><strong>Revenue</strong><div class="fs-5 fw-bold text-success">${_c(f['Revenue'])}</div></div>
+            <div class="col-4"><strong>Miles</strong><div>${f['Miles'] || '—'}</div></div>
+            <div class="col-4"><strong>Invoice Status</strong><div>${invoiceBadge(f['Invoice Status'])}</div></div>
+          </div>
+          ${f['Notes'] ? `<div class="mb-3"><strong>Notes</strong><div class="mt-1 p-2 bg-light rounded" style="font-size:.85rem">${f['Notes']}</div></div>` : ''}
+        </div>
+        <!-- Right: Documents & Stops -->
+        <div class="col-lg-5">
+          <h6 class="text-muted text-uppercase mb-3" style="font-size:.72rem;letter-spacing:1px">Documents</h6>
+          <div class="d-flex flex-wrap gap-2 mb-4">
+            ${_docLink(f['Rate Con PDF'], 'Rate Con')}
+            ${_docLink(f['BOL PDF'], 'BOL')}
+            ${_docLink(f['Invoice PDF'], 'Invoice')}
+          </div>
+
+          <h6 class="text-muted text-uppercase mb-3" style="font-size:.72rem;letter-spacing:1px">Load Stops (${stops.length})</h6>
+          ${stops.length ? stops.map((s, i) => {
+            const sf = s.fields;
+            return `<div class="d-flex align-items-start gap-2 mb-2 p-2 rounded" style="background:#f8fafb;border:1px solid #e2e8f0">
+              <span class="badge ${sf['Stop Type'] === 'Pickup' ? 'bg-primary' : 'bg-success'} mt-1">${sf['Stop Type'] || 'Stop'}</span>
+              <div>
+                <div style="font-size:.85rem;font-weight:500">${sf['Address'] || 'No address'}</div>
+                <div style="font-size:.75rem;color:#94a3b8">${sf['Appointment Date/Time'] ? _d(sf['Appointment Date/Time']) : ''} • Seq #${sf['Stop Sequence'] || i+1}</div>
+              </div>
+            </div>`;
+          }).join('') : '<p class="text-muted" style="font-size:.85rem">No stops added</p>'}
+        </div>
+      </div>`;
+
+    document.getElementById('loadDetailTitle').textContent = `Load ${f['Load Number'] || ''} — Details`;
+  } catch (err) {
+    body.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
   }
 }
