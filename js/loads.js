@@ -420,17 +420,29 @@ async function uploadPendingDocs(recordId) {
 // Airtable field names: Load Link, Stop Type, Stop Sequence, Appointment Date/Time, Address
 let _currentLoadId = '';
 
+/**
+ * Fetch stops by their record IDs using OR(RECORD_ID()=...) formula.
+ * ARRAYJOIN({Load Link}) resolves to the primary field display value (Load ID),
+ * NOT the record ID, so we use the Load's reverse-link 'Load Stops' field instead.
+ */
+async function _fetchStopsByIds(stopIds) {
+  if (!stopIds || stopIds.length === 0) return [];
+  const formula = 'OR(' + stopIds.map(id => `RECORD_ID()='${id}'`).join(',') + ')';
+  return Airtable.getAll(CONFIG.TABLES.LOAD_STOPS, {
+    filterByFormula: formula,
+    'sort[0][field]': 'Stop Sequence',
+    'sort[0][direction]': 'asc',
+  });
+}
+
 async function openStops(loadId, loadNum) {
   _currentLoadId = loadId;
   document.getElementById('stopsLoadNum').textContent = loadNum;
 
   try {
-    const params = {
-      filterByFormula: `FIND("${loadId}", ARRAYJOIN({Load Link}))`,
-      'sort[0][field]': 'Stop Sequence',
-      'sort[0][direction]': 'asc',
-    };
-    const stops = await Airtable.getAll(CONFIG.TABLES.LOAD_STOPS, params);
+    const load = await Airtable.getOne(CONFIG.TABLES.LOADS, loadId);
+    const stopIds = load.fields['Load Stops'] || [];
+    const stops = await _fetchStopsByIds(stopIds);
     renderStops(stops);
     new bootstrap.Modal(document.getElementById('stopsModal')).show();
   } catch (err) {
@@ -556,14 +568,11 @@ async function openLoadDetail(id) {
     const driverName  = App.lookupName(_drivers, f['Driver']);
     const truckName   = App.lookupName(_trucks, f['Truck']);
 
-    // Fetch load stops
+    // Fetch load stops via reverse-link field
     let stops = [];
     try {
-      const allStops = await Airtable.getAll(CONFIG.TABLES.LOAD_STOPS, {
-        filterByFormula: `FIND("${id}", ARRAYJOIN({Load Link}))`,
-        'sort[0][field]': 'Stop Sequence', 'sort[0][direction]': 'asc'
-      });
-      stops = allStops;
+      const stopIds = f['Load Stops'] || [];
+      stops = await _fetchStopsByIds(stopIds);
     } catch (_) {}
 
     const _d = (v) => App.formatDate(v);
@@ -847,14 +856,46 @@ async function createLoadFromImport() {
     const company = document.getElementById('aiCompany').value;
     if (company) fields['Company'] = [company];
 
-    // Try to match broker by name
+    // Match or create broker
     const brokerName = _importData.broker_name;
     if (brokerName) {
       const matchedBroker = _brokers.find(b =>
         (b.fields['Broker Name'] || '').toLowerCase().includes(brokerName.toLowerCase())
       );
-      if (matchedBroker) fields['Brokers/Shippers'] = [matchedBroker.id];
+      if (matchedBroker) {
+        fields['Brokers/Shippers'] = [matchedBroker.id];
+      } else {
+        // Auto-create broker
+        try {
+          const brokerFields = { 'Broker Name': brokerName };
+          if (_importData.broker_email) brokerFields['Contact Email'] = _importData.broker_email;
+          if (_importData.broker_phone) brokerFields['Main Phone'] = _importData.broker_phone;
+          const newBroker = await Airtable.create(CONFIG.TABLES.BROKERS, brokerFields);
+          _brokers.push(newBroker); // update cache
+          fields['Brokers/Shippers'] = [newBroker.id];
+          console.log('[Import] Broker created:', newBroker.id, brokerName);
+        } catch (err) {
+          console.warn('[Import] Broker creation failed:', err.message);
+        }
+      }
     }
+
+    // Extract pickup/delivery dates from stops
+    const stops = _importData.stops || [];
+    const pickupStops = stops.filter(s => !(s.type || '').toLowerCase().includes('deliv'));
+    const deliveryStops = stops.filter(s => (s.type || '').toLowerCase().includes('deliv'));
+    const _parseStopDate = (s) => {
+      if (!s || !s.date) return null;
+      try {
+        const dateStr = s.date + (s.time ? 'T' + s.time + ':00' : 'T00:00:00');
+        const d = new Date(dateStr);
+        return isNaN(d.getTime()) ? null : d.toISOString();
+      } catch (_) { return null; }
+    };
+    const pickupDate = _parseStopDate(pickupStops[0]);
+    const deliveryDate = _parseStopDate(deliveryStops[deliveryStops.length - 1]);
+    if (pickupDate) fields['Pickup Date'] = pickupDate;
+    if (deliveryDate) fields['Delivery Date'] = deliveryDate;
 
     // Create the load in Airtable
     const created = await Airtable.create(CONFIG.TABLES.LOADS, fields);
@@ -863,7 +904,6 @@ async function createLoadFromImport() {
 
     // Create stops from AI data
     let stopsCreated = 0;
-    const stops = _importData.stops || [];
     console.log('[Import] Stops to create:', stops.length, JSON.stringify(stops));
     
     for (let i = 0; i < stops.length; i++) {
@@ -1048,12 +1088,10 @@ async function calculateLoadDistance(loadId) {
   App.showToast('Calculating distance…', 'info');
 
   try {
-    // Fetch stops for this load
-    const stops = await Airtable.getAll(CONFIG.TABLES.LOAD_STOPS, {
-      filterByFormula: `FIND("${loadId}", ARRAYJOIN({Load Link}))`,
-      'sort[0][field]': 'Stop Sequence',
-      'sort[0][direction]': 'asc',
-    });
+    // Fetch stops for this load via reverse-link field
+    const load = await Airtable.getOne(CONFIG.TABLES.LOADS, loadId);
+    const stopIds = load.fields['Load Stops'] || [];
+    const stops = await _fetchStopsByIds(stopIds);
 
     if (stops.length < 2) {
       App.showToast('Need at least 2 stops to calculate distance.', 'warning');
