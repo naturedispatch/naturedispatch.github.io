@@ -861,27 +861,35 @@ async function createLoadFromImport() {
     const loadId = created.id;
 
     // Create stops from AI data
+    let stopsCreated = 0;
     if (_importData.stops && _importData.stops.length) {
       for (let i = 0; i < _importData.stops.length; i++) {
         const s = _importData.stops[i];
+        const addr = [s.address, s.city, s.state, s.zip].filter(Boolean).join(', ');
         const stopFields = {
           'Load Link':      [loadId],
           'Stop Type':      s.type === 'Delivery' ? 'Delivery' : 'Pickup',
           'Stop Sequence':  i + 1,
-          'Address':        [s.address, s.city, s.state, s.zip].filter(Boolean).join(', '),
         };
+        if (addr) stopFields['Address'] = addr;
         if (s.date) {
           try {
-            stopFields['Appointment Date/Time'] = new Date(s.date + (s.time ? ' ' + s.time : '')).toISOString();
+            const dateStr = s.date + (s.time ? 'T' + s.time + ':00' : 'T00:00:00');
+            const d = new Date(dateStr);
+            if (!isNaN(d.getTime())) stopFields['Appointment Date/Time'] = d.toISOString();
           } catch (_) {}
         }
         try {
           await Airtable.create(CONFIG.TABLES.LOAD_STOPS, stopFields);
+          stopsCreated++;
+          console.log(`[Import] Stop ${i+1} created:`, stopFields);
         } catch (err) {
-          console.warn(`Failed to create stop ${i + 1}:`, err);
+          console.error(`[Import] Failed to create stop ${i + 1}:`, err, stopFields);
+          App.showToast(`Warning: Stop ${i+1} failed — ${err.message}`, 'warning');
         }
       }
     }
+    console.log(`[Import] ${stopsCreated}/${(_importData.stops||[]).length} stops created for load ${loadId}`);
 
     // Upload the Rate Con PDF to the new load
     if (_importFile) {
@@ -902,14 +910,112 @@ async function createLoadFromImport() {
 // ██  ADMIN APPROVAL / REJECT WORKFLOW                       ██
 // ══════════════════════════════════════════════════════════════
 
+// ── Approval modal state ────────────────────────────────────
+let _approveRecordId = null;
+
 async function approveLoad(recordId) {
-  if (!confirm('Approve this load and change status to "New"?')) return;
+  _approveRecordId = recordId;
+
+  // Load the record to pre-fill what we can
   try {
-    await Airtable.update(CONFIG.TABLES.LOADS, recordId, { 'Status': 'New' });
-    App.showToast('Load approved! Status changed to New.', 'success');
-    loadLoadsPage();
+    const rec = await Airtable.getOne(CONFIG.TABLES.LOADS, recordId);
+    const f = rec.fields;
+    document.getElementById('approveLoadTitle').textContent = `Approve Load — ${f['Load Number'] || ''}`;
+
+    // Populate dropdowns
+    _fillApprovalSelect('approveDriver', _drivers, 'Full Name', f['Driver']);
+    _fillApprovalSelect('approveTruck', _trucks, 'Truck Number', f['Truck']);
+    _fillApprovalSelect('approveBroker', _brokers, 'Broker Name', f['Brokers/Shippers']);
+
+    // Show load summary
+    document.getElementById('approveSummary').innerHTML = `
+      <div class="row g-2">
+        <div class="col-6"><strong>Revenue:</strong> ${App.formatCurrency(f['Revenue'])}</div>
+        <div class="col-6"><strong>Miles:</strong> ${f['Miles'] || '—'}</div>
+        <div class="col-12"><strong>Notes:</strong> ${f['Notes'] || '—'}</div>
+      </div>`;
+
+    new bootstrap.Modal(document.getElementById('approveModal')).show();
   } catch (err) {
-    App.showToast('Approve failed: ' + err.message, 'danger');
+    App.showToast('Could not load record: ' + err.message, 'danger');
+  }
+}
+
+function _fillApprovalSelect(id, cache, nameField, linkedIds) {
+  const el = document.getElementById(id);
+  el.innerHTML = '<option value="">— Select —</option>' +
+    cache.map(r => `<option value="${r.id}">${r.fields[nameField] || r.id}</option>`).join('');
+  if (linkedIds) {
+    el.value = Array.isArray(linkedIds) ? linkedIds[0] : linkedIds;
+  }
+}
+
+async function confirmApproval() {
+  if (!_approveRecordId) return;
+  const btn = document.getElementById('confirmApproveBtn');
+
+  const driver = document.getElementById('approveDriver').value;
+  const truck  = document.getElementById('approveTruck').value;
+  const broker = document.getElementById('approveBroker').value;
+
+  if (!driver) { App.showToast('Please select a driver.', 'warning'); return; }
+  if (!truck)  { App.showToast('Please select a truck.', 'warning'); return; }
+
+  await App.withLoading(btn, async () => {
+    const fields = {
+      'Status': 'New',
+      'Driver': [driver],
+      'Truck':  [truck],
+    };
+    if (broker) fields['Brokers/Shippers'] = [broker];
+
+    await Airtable.update(CONFIG.TABLES.LOADS, _approveRecordId, fields);
+    App.showToast('Load approved! Driver & truck assigned.', 'success');
+    bootstrap.Modal.getInstance(document.getElementById('approveModal')).hide();
+    loadLoadsPage();
+  });
+}
+
+// ── Quick-create from approval modal ────────────────────────
+async function quickCreateDriver() {
+  const name = prompt('Enter driver full name:');
+  if (!name || !name.trim()) return;
+  try {
+    const created = await Airtable.create(CONFIG.TABLES.DRIVERS, { 'Full Name': name.trim() });
+    _drivers.push(created);
+    _fillApprovalSelect('approveDriver', _drivers, 'Full Name');
+    document.getElementById('approveDriver').value = created.id;
+    App.showToast(`Driver "${name.trim()}" created!`, 'success');
+  } catch (err) {
+    App.showToast('Failed to create driver: ' + err.message, 'danger');
+  }
+}
+
+async function quickCreateTruck() {
+  const num = prompt('Enter truck number:');
+  if (!num || !num.trim()) return;
+  try {
+    const created = await Airtable.create(CONFIG.TABLES.TRUCKS, { 'Truck Number': num.trim() });
+    _trucks.push(created);
+    _fillApprovalSelect('approveTruck', _trucks, 'Truck Number');
+    document.getElementById('approveTruck').value = created.id;
+    App.showToast(`Truck "${num.trim()}" created!`, 'success');
+  } catch (err) {
+    App.showToast('Failed to create truck: ' + err.message, 'danger');
+  }
+}
+
+async function quickCreateBroker() {
+  const name = prompt('Enter broker name:');
+  if (!name || !name.trim()) return;
+  try {
+    const created = await Airtable.create(CONFIG.TABLES.BROKERS, { 'Broker Name': name.trim() });
+    _brokers.push(created);
+    _fillApprovalSelect('approveBroker', _brokers, 'Broker Name');
+    document.getElementById('approveBroker').value = created.id;
+    App.showToast(`Broker "${name.trim()}" created!`, 'success');
+  } catch (err) {
+    App.showToast('Failed to create broker: ' + err.message, 'danger');
   }
 }
 

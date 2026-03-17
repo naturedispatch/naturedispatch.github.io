@@ -292,6 +292,59 @@
     </div>
   </div>
 
+  <!-- Approve Load Modal -->
+  <div class="modal fade" id="approveModal" tabindex="-1">
+    <div class="modal-dialog modal-md">
+      <div class="modal-content">
+        <div class="modal-header" style="background:linear-gradient(135deg,rgba(82,183,136,.08),rgba(45,106,79,.08))">
+          <h5 class="modal-title" id="approveLoadTitle"><i class="bi bi-check-circle me-2" style="color:var(--nd-accent)"></i>Approve Load</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div id="approveSummary" class="p-3 rounded mb-3" style="background:#f8fafb;border:1px solid #e2e8f0;font-size:.88rem"></div>
+
+          <h6 class="text-muted text-uppercase" style="font-size:.72rem;letter-spacing:1px">Assign Resources</h6>
+
+          <div class="mb-3">
+            <label class="form-label d-flex justify-content-between align-items-center">
+              <span>Driver <span class="text-danger">*</span></span>
+              <button class="btn btn-xs btn-outline-nd" type="button" onclick="quickCreateDriver()">
+                <i class="bi bi-plus-circle me-1"></i>New Driver
+              </button>
+            </label>
+            <select class="form-select" id="approveDriver"><option value="">— Select —</option></select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label d-flex justify-content-between align-items-center">
+              <span>Truck <span class="text-danger">*</span></span>
+              <button class="btn btn-xs btn-outline-nd" type="button" onclick="quickCreateTruck()">
+                <i class="bi bi-plus-circle me-1"></i>New Truck
+              </button>
+            </label>
+            <select class="form-select" id="approveTruck"><option value="">— Select —</option></select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label d-flex justify-content-between align-items-center">
+              <span>Broker</span>
+              <button class="btn btn-xs btn-outline-nd" type="button" onclick="quickCreateBroker()">
+                <i class="bi bi-plus-circle me-1"></i>New Broker
+              </button>
+            </label>
+            <select class="form-select" id="approveBroker"><option value="">— Select —</option></select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button class="btn btn-success" id="confirmApproveBtn" onclick="confirmApproval()">
+            <i class="bi bi-check-circle me-2"></i>Approve & Assign
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Load Detail Modal -->
   <div class="modal fade" id="loadDetailModal" tabindex="-1">
     <div class="modal-dialog modal-xl">
