@@ -152,7 +152,6 @@ const TomTomProvider = (() => {
       container: el,
       center: options.center ? [options.center.lng, options.center.lat] : [-98.5795, 39.8283],
       zoom: options.zoom || 4,
-      style: `https://api.tomtom.com/style/2/custom/style/dG9tdG9tQEBAYktLYnBJaUhZNTNjVHhBOzc0NjMyNmNjLWJmMzktNDc4Ny1hZjM1LTdkZjlkYjk0N2M3Mw==.json?key=${getApiKey()}`,
     });
 
     // Add navigation controls
