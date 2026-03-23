@@ -80,6 +80,23 @@ async function loadDashboard() {
         ${kpiCard('bi-bell',              'bg-danger-subtle text-danger',     openAlerts,     'Open Alerts')}
       </div>
 
+      <!-- Row 2.5: Fleet Overview Map -->
+      <div class="row g-3 mb-4">
+        <div class="col-12">
+          <div class="table-container p-3">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h6 class="fw-bold mb-0"><i class="bi bi-map me-2"></i>Fleet Overview Map</h6>
+              <span class="badge bg-primary-subtle text-primary">${activeLoads.length} active load(s)</span>
+            </div>
+            <div id="dashboardFleetMap" class="nd-map-container" style="height:380px">
+              <div class="d-flex align-items-center justify-content-center h-100 text-muted">
+                <div class="spinner-border spinner-border-sm me-2"></div> Loading map…
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Row 3: Status + Driver Availability + Alerts -->
       <div class="row g-3 mb-4">
         <!-- Loads by Status -->
@@ -185,6 +202,9 @@ async function loadDashboard() {
         </div>
       </div>
     `;
+
+    // ── Render Fleet Map (async, non-blocking) ─────────────
+    _renderFleetMap(activeLoads);
   } catch (err) {
     body.innerHTML = `<div class="alert alert-danger"><strong>Error:</strong> ${err.message}</div>`;
     console.error(err);
@@ -206,4 +226,104 @@ function kpiCard(icon, colorClass, value, label) {
       </div>
     </div>
   </div>`;
+}
+
+/**
+ * Render the fleet overview map on the dashboard.
+ * Fetches first stop of each active load, geocodes it, pins it on the map.
+ */
+async function _renderFleetMap(activeLoads) {
+  const mapEl = document.getElementById('dashboardFleetMap');
+  if (!mapEl) return;
+
+  // Check if Maps key is available
+  if (!GMaps.getApiKey()) {
+    mapEl.innerHTML = `<div class="d-flex align-items-center justify-content-center h-100 text-muted" style="font-size:.85rem">
+      <i class="bi bi-key me-2"></i>Configure Google Maps API key in Settings → Integrations
+    </div>`;
+    return;
+  }
+
+  if (activeLoads.length === 0) {
+    mapEl.innerHTML = `<div class="d-flex align-items-center justify-content-center h-100 text-muted" style="font-size:.85rem">
+      <i class="bi bi-geo-alt me-2"></i>No active loads to display
+    </div>`;
+    return;
+  }
+
+  try {
+    await GMaps.ensureLoaded();
+
+    // Fetch stops for active loads that have the Load Stops field
+    const loadsWithStops = activeLoads.filter(l => l.fields['Load Stops']?.length > 0);
+    const allStopIds = loadsWithStops.flatMap(l => l.fields['Load Stops']);
+
+    let allStops = [];
+    if (allStopIds.length > 0) {
+      // Fetch in batches of 20 due to formula length limits
+      for (let i = 0; i < allStopIds.length; i += 20) {
+        const batch = allStopIds.slice(i, i + 20);
+        const formula = 'OR(' + batch.map(id => `RECORD_ID()='${id}'`).join(',') + ')';
+        const batchStops = await Airtable.getAll(CONFIG.TABLES.LOAD_STOPS, { filterByFormula: formula });
+        allStops = allStops.concat(batchStops);
+      }
+    }
+
+    // Build a map: stopId → stop record
+    const stopMap = {};
+    allStops.forEach(s => { stopMap[s.id] = s; });
+
+    // Get the first pickup address for each active load
+    const addresses = [];
+    const loadLabels = [];
+    for (const load of loadsWithStops) {
+      const stopIds = load.fields['Load Stops'] || [];
+      // Find the first stop with an address
+      for (const sid of stopIds) {
+        const stop = stopMap[sid];
+        if (stop?.fields['Address']) {
+          addresses.push(stop.fields['Address']);
+          loadLabels.push({
+            label: `Load ${load.fields['Load Number'] || '—'}`,
+            status: load.fields['Status'] || 'New',
+            info: `${App.formatCurrency(load.fields['Revenue'])} • ${load.fields['Miles'] || '?'} mi`,
+          });
+          break;
+        }
+      }
+    }
+
+    if (addresses.length === 0) {
+      mapEl.innerHTML = `<div class="d-flex align-items-center justify-content-center h-100 text-muted" style="font-size:.85rem">
+        <i class="bi bi-geo-alt me-2"></i>No stop addresses available for active loads
+      </div>`;
+      return;
+    }
+
+    // Geocode addresses
+    const geocoded = await GMaps.batchGeocode(addresses);
+
+    // Build pins
+    const pins = geocoded.map((geo, i) => {
+      if (!geo) return null;
+      return { lat: geo.lat, lng: geo.lng, ...loadLabels[i] };
+    }).filter(Boolean);
+
+    if (pins.length === 0) {
+      mapEl.innerHTML = `<div class="d-flex align-items-center justify-content-center h-100 text-muted" style="font-size:.85rem">
+        <i class="bi bi-geo-alt me-2"></i>Could not geocode load addresses
+      </div>`;
+      return;
+    }
+
+    // Render the map
+    const map = await GMaps.createMap(mapEl, { zoom: 4 });
+    GMaps.addLoadPins(map, pins);
+
+  } catch (err) {
+    mapEl.innerHTML = `<div class="d-flex align-items-center justify-content-center h-100 text-muted" style="font-size:.85rem">
+      <i class="bi bi-exclamation-triangle me-2"></i>Fleet map unavailable
+    </div>`;
+    console.warn('Fleet map error:', err);
+  }
 }

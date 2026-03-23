@@ -892,3 +892,59 @@
   background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
   background-size: 200% 100%;
 }
+
+/* ══════════════════════════════════════════════════════════
+   GOOGLE MAPS CONTAINERS
+   ══════════════════════════════════════════════════════════ */
+.nd-map-container {
+  border-radius: var(--nd-radius-sm, 12px);
+  overflow: hidden;
+  border: 1px solid rgba(0,0,0,.08);
+  box-shadow: 0 2px 8px rgba(0,0,0,.06);
+  background: #f1f5f9;
+  position: relative;
+}
+[data-theme="dark"] .nd-map-container {
+  border-color: rgba(255,255,255,.08);
+  background: #1e293b;
+}
+
+/* Override Google Maps info window to match ND theme */
+.gm-style .gm-style-iw-c {
+  border-radius: 12px !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,.12) !important;
+  padding: 4px !important;
+}
+.gm-style .gm-style-iw-tc::after {
+  background: #fff !important;
+}
+/* Hide the default close button background */
+.gm-style .gm-style-iw-chr button {
+  width: 22px !important;
+  height: 22px !important;
+}
+
+/* Places Autocomplete dropdown styling */
+.pac-container {
+  border-radius: 8px !important;
+  border: 1px solid rgba(82,183,136,.2) !important;
+  box-shadow: 0 6px 20px rgba(0,0,0,.12) !important;
+  font-family: Inter, system-ui, sans-serif !important;
+  margin-top: 4px !important;
+  z-index: 10600 !important; /* Above Bootstrap modals */
+}
+.pac-item {
+  padding: 8px 12px !important;
+  font-size: .85rem !important;
+  border-top-color: #f1f5f9 !important;
+}
+.pac-item:hover {
+  background: rgba(82,183,136,.06) !important;
+}
+.pac-icon {
+  margin-top: 2px !important;
+}
+.pac-item-query {
+  font-weight: 600 !important;
+  color: #1e293b !important;
+}

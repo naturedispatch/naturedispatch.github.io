@@ -457,6 +457,7 @@ function renderStops(stops) {
     return;
   }
   body.innerHTML = `
+    ${stops.length >= 2 ? `<div id="stopsRouteMap" class="nd-map-container mb-3" style="height:250px"></div>` : ''}
     <div class="table-responsive">
       <table class="table table-sm">
         <thead>
@@ -481,6 +482,11 @@ function renderStops(stops) {
         </tbody>
       </table>
     </div>`;
+
+  // Render route map in stops modal
+  if (stops.length >= 2) {
+    _renderStopsMap(stops);
+  }
 }
 
 async function addStop() {
@@ -521,6 +527,9 @@ async function addStop() {
     </div>`;
   body.insertAdjacentHTML('afterbegin', formHtml);
   document.getElementById('stopAddress').focus();
+
+  // Attach Google Places Autocomplete to the address field
+  try { GMaps.attachAutocomplete('stopAddress'); } catch (_) {}
 }
 
 async function saveNewStop() {
@@ -583,6 +592,13 @@ async function openLoadDetail(id) {
     };
 
     body.innerHTML = `
+      <!-- Route Map -->
+      ${stops.length >= 2 ? `
+      <div class="mb-4">
+        <h6 class="text-muted text-uppercase mb-2" style="font-size:.72rem;letter-spacing:1px"><i class="bi bi-map me-1"></i>Route Map</h6>
+        <div id="loadDetailMap" class="nd-map-container" style="height:300px"></div>
+      </div>` : ''}
+
       <div class="row g-4">
         <!-- Left: Load Info -->
         <div class="col-lg-7">
@@ -635,9 +651,54 @@ async function openLoadDetail(id) {
         </div>
       </div>`;
 
+    // Render route map if we have 2+ stops with addresses
+    if (stops.length >= 2) {
+      _renderDetailMap(stops);
+    }
+
     document.getElementById('loadDetailTitle').textContent = `Load ${f['Load Number'] || ''} — Details`;
   } catch (err) {
     body.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
+  }
+}
+
+/** Render route map inside the Stops modal */
+async function _renderStopsMap(stops) {
+  const mapEl = document.getElementById('stopsRouteMap');
+  if (!mapEl) return;
+  try {
+    const mapStops = stops.map((s, i) => ({
+      address: s.fields['Address'],
+      type: s.fields['Stop Type'] || 'Stop',
+      seq: s.fields['Stop Sequence'] || i + 1,
+    })).filter(s => s.address);
+    if (mapStops.length < 2) return;
+    const map = await GMaps.createMap(mapEl, { zoom: 5 });
+    await GMaps.renderRoute(map, mapStops);
+  } catch (err) {
+    mapEl.innerHTML = `<div class="d-flex align-items-center justify-content-center h-100 text-muted" style="font-size:.85rem"><i class="bi bi-exclamation-triangle me-2"></i>Map unavailable</div>`;
+    console.warn('Stops map error:', err);
+  }
+}
+
+/** Render route map inside Load Detail modal */
+async function _renderDetailMap(stops) {
+  const mapEl = document.getElementById('loadDetailMap');
+  if (!mapEl) return;
+  try {
+    const mapStops = stops.map((s, i) => ({
+      address: s.fields['Address'],
+      type: s.fields['Stop Type'] || 'Stop',
+      seq: s.fields['Stop Sequence'] || i + 1,
+      appointment: s.fields['Appointment Date/Time'] ? App.formatDate(s.fields['Appointment Date/Time']) : '',
+    })).filter(s => s.address);
+
+    if (mapStops.length < 2) return;
+    const map = await GMaps.createMap(mapEl, { zoom: 5 });
+    await GMaps.renderRoute(map, mapStops);
+  } catch (err) {
+    mapEl.innerHTML = `<div class="d-flex align-items-center justify-content-center h-100 text-muted" style="font-size:.85rem"><i class="bi bi-exclamation-triangle me-2"></i>Map unavailable</div>`;
+    console.warn('Detail map error:', err);
   }
 }
 
@@ -829,11 +890,35 @@ async function calcImportDistance() {
         <i class="bi bi-arrow-clockwise me-2"></i>Recalculate
       </button>`;
     App.showToast(`Total distance: ${_importMiles} miles`);
+
+    // Render route preview map
+    _renderImportRouteMap(addresses, _importData.stops);
   } catch (err) {
     console.error('Distance calc failed:', err);
     App.showToast('Distance calculation failed: ' + err.message, 'warning');
     btn.disabled = false;
     btn.innerHTML = '<i class="bi bi-signpost-2 me-2"></i>Calculate Distance';
+  }
+}
+
+/** Render a route preview map in the Rate Con Import modal */
+async function _renderImportRouteMap(addresses, aiStops) {
+  const mapEl = document.getElementById('importRouteMap');
+  if (!mapEl || addresses.length < 2) return;
+  try {
+    mapEl.style.display = '';
+    const mapStops = (aiStops || []).map((s, i) => ({
+      address: [s.address, s.city, s.state, s.zip].filter(Boolean).join(', '),
+      type: s.type || 'Stop',
+      seq: i + 1,
+      label: s.company_name || '',
+    })).filter(s => s.address);
+    if (mapStops.length < 2) return;
+    const map = await GMaps.createMap(mapEl, { zoom: 5 });
+    await GMaps.renderRoute(map, mapStops);
+  } catch (err) {
+    mapEl.innerHTML = `<div class="d-flex align-items-center justify-content-center h-100 text-muted" style="font-size:.85rem"><i class="bi bi-exclamation-triangle me-2"></i>Route preview unavailable</div>`;
+    console.warn('Import route map error:', err);
   }
 }
 
