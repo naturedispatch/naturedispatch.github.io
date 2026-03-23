@@ -77,6 +77,10 @@ async function loadDashboard() {
     const profitMargin = totalRevenue - totalCost;
     const marginPct = totalRevenue > 0 ? ((profitMargin / totalRevenue) * 100).toFixed(1) : '0.0';
 
+    // Average profit per mile
+    const totalMiles = loads.reduce((s, r) => s + (parseFloat(r.fields['Miles']) || 0), 0);
+    const avgProfitPerMile = totalMiles > 0 ? (profitMargin / totalMiles) : 0;
+
     // Greeting based on time of day
     const hour = new Date().getHours();
     const greeting = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
@@ -101,7 +105,7 @@ async function loadDashboard() {
         ${kpiCard('bi-box-seam',       'bg-primary-subtle text-primary',   totalLoads,                        'Total Loads')}
         ${kpiCard('bi-currency-dollar','bg-success-subtle text-success',   App.formatCurrency(totalRevenue),  'Total Revenue')}
         ${kpiCard('bi-graph-up-arrow', 'bg-success-subtle text-success',   App.formatCurrency(profitMargin),  'Profit (' + marginPct + '%)')}
-        ${kpiCard('bi-truck',          'bg-warning-subtle text-warning',   activeTrucks,                      'Active Trucks')}
+        ${kpiCard('bi-speedometer2',   avgProfitPerMile >= 1 ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger', '$' + avgProfitPerMile.toFixed(2) + '/mi', 'Avg Profit/Mile')}
       </div>
 
       <!-- Row 2: BRD Operational KPIs -->
@@ -204,6 +208,7 @@ async function loadDashboard() {
                     <th>Load #</th>
                     <th>Status</th>
                     <th>Revenue</th>
+                    <th>$/mi</th>
                     <th>ETA</th>
                     <th>Docs</th>
                     <th>Invoice</th>
@@ -216,17 +221,23 @@ async function loadDashboard() {
                     const docCount = (f['Rate Con PDF']?.length > 0 ? 1 : 0) + (f['BOL PDF']?.length > 0 ? 1 : 0) + (f['Invoice PDF']?.length > 0 ? 1 : 0);
                     const docCls = docCount === 3 ? 'bg-success' : docCount > 0 ? 'bg-warning text-dark' : 'bg-danger';
                     const invMap = { 'Not Ready': 'bg-secondary', 'Docs Missing': 'bg-warning text-dark', 'Ready to Invoice': 'bg-info', 'Invoiced': 'bg-primary', 'Paid': 'bg-success', 'Disputed': 'bg-danger' };
+                    const miles = parseFloat(f['Miles']) || 0;
+                    const rev = parseFloat(f['Revenue']) || 0;
+                    const cost = parseFloat(f['Cost']) || 0;
+                    const ppm = miles > 0 ? ((rev - cost) / miles) : 0;
+                    const ppmCls = miles === 0 ? 'text-muted' : ppm >= 1 ? 'text-success' : 'text-danger';
                     return `<tr>
                     <td class="fw-semibold">${f['Load Number'] || '—'}</td>
                     <td>${App.statusBadge(f['Status'])}</td>
                     <td>${App.formatCurrency(f['Revenue'])}</td>
+                    <td class="${ppmCls} fw-semibold" style="font-size:.82rem">${miles > 0 ? '$' + ppm.toFixed(2) : '—'}</td>
                     <td>${f['ETA'] ? App.formatDate(f['ETA']) : '—'}</td>
                     <td><span class="badge ${docCls}">${docCount}/3</span></td>
                     <td><span class="badge ${invMap[f['Invoice Status']] || 'bg-secondary'}">${f['Invoice Status'] || '—'}</span></td>
                     <td title="${App.formatDate(l.createdTime)}">${App.relativeTime(l.createdTime)}</td>
                   </tr>`;
                   }).join('')}
-                  ${loads.length === 0 ? '<tr><td colspan="7" class="text-center text-muted py-4">No loads found</td></tr>' : ''}
+                  ${loads.length === 0 ? '<tr><td colspan="8" class="text-center text-muted py-4">No loads found</td></tr>' : ''}
                 </tbody>
               </table>
             </div>

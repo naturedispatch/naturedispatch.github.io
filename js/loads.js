@@ -82,6 +82,7 @@ async function loadLoadsPage() {
                 <th>Driver</th>
                 <th>Truck</th>
                 <th>Revenue</th>
+                <th>$/mi</th>
                 <th>ETA</th>
                 <th>Docs</th>
                 <th>Invoice</th>
@@ -91,7 +92,7 @@ async function loadLoadsPage() {
             </thead>
             <tbody>
               ${loads.map(l => loadRow(l)).join('')}
-              ${loads.length === 0 ? '<tr><td colspan="11" class="empty-state"><i class="bi bi-inbox"></i><p>No loads found</p></td></tr>' : ''}
+              ${loads.length === 0 ? '<tr><td colspan="12" class="empty-state"><i class="bi bi-inbox"></i><p>No loads found</p></td></tr>' : ''}
             </tbody>
           </table>
         </div>
@@ -145,6 +146,11 @@ function etaDisplay(eta) {
 function loadRow(rec) {
   const f = rec.fields;
   const isPending = f['Status'] === 'Pending Approval';
+  const _miles = parseFloat(f['Miles']) || 0;
+  const _rev = parseFloat(f['Revenue']) || 0;
+  const _cost = parseFloat(f['Cost']) || 0;
+  const _ppm = _miles > 0 ? ((_rev - _cost) / _miles) : 0;
+  const _ppmCls = _miles === 0 ? 'text-muted' : _ppm >= 1 ? 'text-success' : 'text-danger';
   return `
   <tr data-filterStatus="${f['Status'] || ''}" data-filterInvoice="${f['Invoice Status'] || ''}" data-date="${f['Pickup Date'] || f['ETA'] || ''}">
     <td class="fw-semibold">${f['Load Number'] || '—'}</td>
@@ -153,6 +159,7 @@ function loadRow(rec) {
     <td>${App.lookupName(_drivers, f['Driver'])}</td>
     <td>${App.lookupName(_trucks, f['Truck'])}</td>
     <td>${App.formatCurrency(f['Revenue'])}</td>
+    <td class="${_ppmCls} fw-semibold" style="font-size:.82rem">${_miles > 0 ? '$' + _ppm.toFixed(2) : '—'}</td>
     <td>${etaDisplay(f['ETA'])}</td>
     <td>${docStatus(f)}</td>
     <td>${invoiceBadge(f['Invoice Status'])}</td>
