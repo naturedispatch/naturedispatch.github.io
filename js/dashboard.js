@@ -8,8 +8,18 @@
 
 App.init('Dashboard', loadDashboard);
 
+// Auto-refresh every 5 minutes
+let _dashboardRefreshTimer = null;
+function _startAutoRefresh() {
+  clearInterval(_dashboardRefreshTimer);
+  _dashboardRefreshTimer = setInterval(() => {
+    if (document.visibilityState === 'visible') loadDashboard();
+  }, 5 * 60 * 1000);
+}
+
 async function loadDashboard() {
   const body = document.getElementById('pageBody');
+  _startAutoRefresh();
 
   try {
     // Build filter params
@@ -62,13 +72,35 @@ async function loadDashboard() {
     // Open alerts count
     const openAlerts = alerts.filter(a => a.fields['Status'] === 'Open').length;
 
+    // Profit margin (revenue - cost)
+    const totalCost = loads.reduce((s, r) => s + (parseFloat(r.fields['Cost']) || 0), 0);
+    const profitMargin = totalRevenue - totalCost;
+    const marginPct = totalRevenue > 0 ? ((profitMargin / totalRevenue) * 100).toFixed(1) : '0.0';
+
+    // Greeting based on time of day
+    const hour = new Date().getHours();
+    const greeting = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
+    const userName = (typeof Auth !== 'undefined' && Auth.user?.name) ? Auth.user.name.split(' ')[0] : '';
+
     // ── Render ──────────────────────────────────────────────
     body.innerHTML = `
+      <!-- Welcome + Live Clock -->
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h5 class="fw-bold mb-1" style="color:var(--nd-dark)">${greeting}${userName ? ', ' + userName : ''} 👋</h5>
+          <small class="text-muted">Here's your dispatch overview</small>
+        </div>
+        <div class="text-end">
+          <div id="dashClock" class="fw-bold" style="font-size:1.3rem;color:var(--nd-dark);font-variant-numeric:tabular-nums"></div>
+          <small class="text-muted" id="dashDate"></small>
+        </div>
+      </div>
+
       <!-- Row 1: Main KPI Cards -->
       <div class="row g-3 mb-4">
         ${kpiCard('bi-box-seam',       'bg-primary-subtle text-primary',   totalLoads,                        'Total Loads')}
         ${kpiCard('bi-currency-dollar','bg-success-subtle text-success',   App.formatCurrency(totalRevenue),  'Total Revenue')}
-        ${kpiCard('bi-person-check',   'bg-info-subtle text-info',         availableDrivers,                  'Available Drivers')}
+        ${kpiCard('bi-graph-up-arrow', 'bg-success-subtle text-success',   App.formatCurrency(profitMargin),  'Profit (' + marginPct + '%)')}
         ${kpiCard('bi-truck',          'bg-warning-subtle text-warning',   activeTrucks,                      'Active Trucks')}
       </div>
 
@@ -191,7 +223,7 @@ async function loadDashboard() {
                     <td>${f['ETA'] ? App.formatDate(f['ETA']) : '—'}</td>
                     <td><span class="badge ${docCls}">${docCount}/3</span></td>
                     <td><span class="badge ${invMap[f['Invoice Status']] || 'bg-secondary'}">${f['Invoice Status'] || '—'}</span></td>
-                    <td>${App.formatDate(l.createdTime)}</td>
+                    <td title="${App.formatDate(l.createdTime)}">${App.relativeTime(l.createdTime)}</td>
                   </tr>`;
                   }).join('')}
                   ${loads.length === 0 ? '<tr><td colspan="7" class="text-center text-muted py-4">No loads found</td></tr>' : ''}
@@ -203,12 +235,30 @@ async function loadDashboard() {
       </div>
     `;
 
+    // ── Live clock ─────────────────────────────────────────
+    _startClock();
+
     // ── Render Fleet Map (async, non-blocking) ─────────────
     _renderFleetMap(activeLoads);
   } catch (err) {
     body.innerHTML = `<div class="alert alert-danger"><strong>Error:</strong> ${err.message}</div>`;
     console.error(err);
   }
+}
+
+// ── Live clock updater ──────────────────────────────────────
+let _clockInterval = null;
+function _startClock() {
+  clearInterval(_clockInterval);
+  const update = () => {
+    const now = new Date();
+    const clockEl = document.getElementById('dashClock');
+    const dateEl = document.getElementById('dashDate');
+    if (clockEl) clockEl.textContent = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    if (dateEl) dateEl.textContent = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  };
+  update();
+  _clockInterval = setInterval(update, 1000);
 }
 
 function kpiCard(icon, colorClass, value, label) {
@@ -239,7 +289,7 @@ async function _renderFleetMap(activeLoads) {
   // Check if Maps key is available
   if (!GMaps.getApiKey()) {
     mapEl.innerHTML = `<div class="d-flex align-items-center justify-content-center h-100 text-muted" style="font-size:.85rem">
-      <i class="bi bi-key me-2"></i>Configure Google Maps API key in Settings → Integrations
+      <i class="bi bi-key me-2"></i>Configure a Maps API key in Settings → Integrations
     </div>`;
     return;
   }

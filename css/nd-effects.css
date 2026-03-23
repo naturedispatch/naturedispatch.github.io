@@ -862,6 +862,95 @@
 .login-body .btn-nd {
   box-shadow: 0 4px 16px rgba(82,183,136,.3), 0 0 20px rgba(82,183,136,.1);
 }
+
+/* ============================================================
+   ENHANCEMENTS — Skeleton Loaders, Map Polish, Keyboard Hints
+   ============================================================ */
+
+/* ── Skeleton loading placeholder ───────────────────────── */
+@keyframes ndShimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.nd-skeleton {
+  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+  background-size: 800px 100%;
+  animation: ndShimmer 1.4s ease infinite;
+  border-radius: 6px;
+  min-height: 1em;
+}
+[data-theme="dark"] .nd-skeleton {
+  background: linear-gradient(90deg, rgba(255,255,255,.06) 25%, rgba(255,255,255,.1) 50%, rgba(255,255,255,.06) 75%);
+  background-size: 800px 100%;
+}
+
+/* ── Map container polish ───────────────────────────────── */
+.nd-map-container {
+  border-radius: var(--nd-radius, 12px);
+  overflow: hidden;
+  border: 1px solid rgba(82,183,136,.08);
+  transition: box-shadow .3s ease;
+}
+.nd-map-container:hover {
+  box-shadow: 0 4px 24px rgba(82,183,136,.1);
+}
+
+/* ── Keyboard shortcut hint badge ───────────────────────── */
+.nd-kbd {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(0,0,0,.06);
+  border: 1px solid rgba(0,0,0,.1);
+  font-size: .68rem;
+  font-family: 'SF Mono', Consolas, monospace;
+  font-weight: 600;
+  color: #64748b;
+  line-height: 1.6;
+  vertical-align: middle;
+}
+[data-theme="dark"] .nd-kbd {
+  background: rgba(255,255,255,.06);
+  border-color: rgba(255,255,255,.1);
+  color: #94a3b8;
+}
+
+/* ── Animated counter (for KPI values) ──────────────────── */
+@keyframes countFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.stat-value {
+  animation: countFadeIn .5s ease both;
+}
+
+/* ── Toast slide-in from right ──────────────────────────── */
+@keyframes toastSlideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0); opacity: 1; }
+}
+.toast-container .toast {
+  animation: toastSlideIn .35s cubic-bezier(.4,0,.2,1) both;
+}
+
+/* ── Dashboard clock ────────────────────────────────────── */
+#dashClock {
+  letter-spacing: .5px;
+}
+
+/* ── Smooth scrollbar for sidebar ───────────────────────── */
+.sidebar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(82,183,136,.15) transparent;
+}
+.sidebar::-webkit-scrollbar { width: 4px; }
+.sidebar::-webkit-scrollbar-thumb {
+  background: rgba(82,183,136,.15);
+  border-radius: 2px;
+}
+.sidebar::-webkit-scrollbar-thumb:hover {
+  background: rgba(82,183,136,.3);
+}
 .login-body .btn-nd:hover {
   box-shadow: 0 6px 24px rgba(82,183,136,.4), 0 0 30px rgba(82,183,136,.2);
 }

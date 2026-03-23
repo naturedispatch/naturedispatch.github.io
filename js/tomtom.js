@@ -388,12 +388,33 @@ const TomTomProvider = (() => {
   }
 
   /* ══════════════════════════════════════════════════════════
-     GEOCODING
+     GEOCODING  (with sessionStorage cache)
      ══════════════════════════════════════════════════════════ */
+
+  const _GEOCACHE_KEY = 'nd_geocache';
+
+  function _getGeoCache() {
+    try { return JSON.parse(sessionStorage.getItem(_GEOCACHE_KEY) || '{}'); } catch { return {}; }
+  }
+  function _setGeoCache(cache) {
+    try {
+      // Keep cache under 200 entries to avoid storage bloat
+      const keys = Object.keys(cache);
+      if (keys.length > 200) {
+        keys.slice(0, keys.length - 200).forEach(k => delete cache[k]);
+      }
+      sessionStorage.setItem(_GEOCACHE_KEY, JSON.stringify(cache));
+    } catch { /* storage full — ignore */ }
+  }
 
   async function geocode(address) {
     const key = getApiKey();
     if (!key) throw new Error('TomTom API key not configured.');
+
+    // Check cache first
+    const cacheKey = address.trim().toLowerCase();
+    const cache = _getGeoCache();
+    if (cache[cacheKey]) return cache[cacheKey];
 
     const url = `https://api.tomtom.com/search/2/geocode/${encodeURIComponent(address)}.json?key=${encodeURIComponent(key)}&limit=1&countrySet=US`;
     const resp = await fetch(url);
@@ -402,11 +423,17 @@ const TomTomProvider = (() => {
     const r = data.results?.[0];
     if (!r) throw new Error('No geocoding result for: ' + address);
 
-    return {
+    const result = {
       lat: r.position.lat,
       lng: r.position.lon,
       formatted: r.address?.freeformAddress || address,
     };
+
+    // Store in cache
+    cache[cacheKey] = result;
+    _setGeoCache(cache);
+
+    return result;
   }
 
   async function batchGeocode(addresses) {

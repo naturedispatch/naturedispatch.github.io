@@ -139,8 +139,8 @@ const App = (() => {
         <!-- Global Search -->
         <div class="position-relative d-none d-md-block" id="globalSearchWrap">
           <i class="bi bi-search" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:.82rem"></i>
-          <input type="text" id="globalSearchInput" class="form-control form-control-sm" placeholder="Search pages…"
-            style="width:200px;padding-left:34px;border-radius:10px;border:1.5px solid #e2e8f0;font-size:.82rem;background:#f8fafb">
+          <input type="text" id="globalSearchInput" class="form-control form-control-sm" placeholder="Search… (Ctrl+K)"
+            style="width:220px;padding-left:34px;border-radius:10px;border:1.5px solid #e2e8f0;font-size:.82rem;background:#f8fafb">
           <div id="globalSearchResults" class="global-search-dropdown" style="display:none"></div>
         </div>
         <div class="d-flex align-items-center gap-2" style="background:#f8fafb;padding:4px 6px 4px 12px;border-radius:10px;border:1.5px solid #e2e8f0">
@@ -211,6 +211,15 @@ const App = (() => {
       document.body.appendChild(overlay);
       overlay.addEventListener('click', () => {
         document.body.classList.remove('sidebar-mobile-open');
+      });
+
+      // ── Keyboard shortcut: Ctrl+K focuses global search ──
+      document.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+          e.preventDefault();
+          const si = document.getElementById('globalSearchInput');
+          if (si) { si.focus(); si.select(); }
+        }
       });
 
       // ── Global Search ──────────────────────────────────
@@ -349,6 +358,21 @@ const App = (() => {
     return new Date(val).toLocaleDateString('en-US', {
       year: 'numeric', month: 'short', day: 'numeric',
     });
+  }
+
+  function relativeTime(val) {
+    if (!val) return '—';
+    const now = Date.now();
+    const then = new Date(val).getTime();
+    const diff = now - then;
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return mins + 'm ago';
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return hrs + 'h ago';
+    const days = Math.floor(hrs / 24);
+    if (days < 7) return days + 'd ago';
+    return formatDate(val);
   }
 
   function statusBadge(status) {
@@ -524,5 +548,6 @@ const App = (() => {
     withLoading,
     renderTableFilters,
     bindTableFilters,
+    relativeTime,
   };
 })();
