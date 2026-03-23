@@ -25,7 +25,7 @@ const GMaps = (() => {
   let _mapsPromise = null;
 
   function _ensureMapsLoaded(apiKey) {
-    if (window.google?.maps?.DistanceMatrixService) return Promise.resolve();
+    if (window.google?.maps?.Map) return Promise.resolve();
     if (_mapsPromise) return _mapsPromise;
 
     _mapsPromise = new Promise((resolve, reject) => {
@@ -35,7 +35,7 @@ const GMaps = (() => {
         resolve();
       };
       const script = document.createElement('script');
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&callback=${cbName}&libraries=places,geometry`;
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&loading=async&callback=${cbName}&libraries=places,geometry,routes`;
       script.async = true;
       script.onerror = () => {
         _mapsPromise = null;
