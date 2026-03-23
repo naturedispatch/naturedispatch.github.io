@@ -12,11 +12,13 @@
 const Settings = (() => {
   // ── Storage keys ──────────────────────────────────────────
   const KEYS = {
-    THEME:  'nd_theme',
-    LOGO:   'nd_logo',
-    ACCENT: 'nd_accent_color',
-    GEMINI: 'nd_gemini_key',
-    GMAPS:  'nd_gmaps_key',
+    THEME:    'nd_theme',
+    LOGO:     'nd_logo',
+    ACCENT:   'nd_accent_color',
+    GEMINI:   'nd_gemini_key',
+    GMAPS:    'nd_gmaps_key',
+    TOMTOM:   'nd_tomtom_key',
+    PROVIDER: 'nd_maps_provider',
   };
 
   // ── Accent color presets ──────────────────────────────────
@@ -37,6 +39,8 @@ const Settings = (() => {
     const savedAccent = localStorage.getItem(KEYS.ACCENT) || '#52b788';
     const savedGemini = localStorage.getItem(KEYS.GEMINI) || '';
     const savedGmaps  = localStorage.getItem(KEYS.GMAPS) || '';
+    const savedTomtom = localStorage.getItem(KEYS.TOMTOM) || '';
+    const savedProvider = localStorage.getItem(KEYS.PROVIDER) || 'auto';
 
     body.innerHTML = `
       <div class="row g-4">
@@ -158,13 +162,53 @@ const Settings = (() => {
               ${savedGemini ? '<div class="mt-2"><span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Connected</span></div>' : '<div class="mt-2"><span class="badge bg-secondary">Not configured</span></div>'}
             </div>
 
+            <!-- Maps Provider Selector -->
+            <div class="mb-4 p-3" style="background:rgba(45,106,79,.04);border-radius:12px;border:1px solid rgba(45,106,79,.12)">
+              <div class="d-flex align-items-center gap-2 mb-2">
+                <i class="bi bi-map" style="font-size:1.2rem;color:var(--nd-accent)"></i>
+                <div>
+                  <div style="font-weight:700;font-size:.9rem">Maps Provider</div>
+                  <div style="font-size:.75rem;color:#94a3b8">Choose which mapping service to use. Auto will prefer TomTom when available.</div>
+                </div>
+              </div>
+              <div class="d-flex gap-2">
+                <select class="form-select form-select-sm" id="mapsProviderSelect" style="max-width:200px">
+                  <option value="auto" ${savedProvider === 'auto' ? 'selected' : ''}>Auto (recommended)</option>
+                  <option value="tomtom" ${savedProvider === 'tomtom' ? 'selected' : ''}>TomTom</option>
+                  <option value="google" ${savedProvider === 'google' ? 'selected' : ''}>Google Maps</option>
+                </select>
+                <span class="badge ${(typeof GMaps !== 'undefined' && GMaps.activeProviderName() !== 'None') ? 'bg-success' : 'bg-secondary'} align-self-center" style="font-size:.72rem"><i class="bi bi-broadcast me-1"></i>Active: ${typeof GMaps !== 'undefined' ? GMaps.activeProviderName() : 'None'}</span>
+              </div>
+            </div>
+
+            <!-- TomTom Maps -->
+            <div class="mb-4 p-3" style="background:rgba(239,108,0,.04);border-radius:12px;border:1px solid rgba(239,108,0,.08)">
+              <div class="d-flex align-items-center gap-2 mb-2">
+                <i class="bi bi-globe-americas" style="font-size:1.2rem;color:#ef6c00"></i>
+                <div>
+                  <div style="font-weight:700;font-size:.9rem">TomTom Maps API <span class="badge bg-success-subtle text-success ms-1" style="font-size:.65rem">Recommended</span></div>
+                  <div style="font-size:.75rem;color:#94a3b8">Free tier: 2,500 transactions/day. Maps, routing, geocoding & search.</div>
+                </div>
+              </div>
+              <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-key"></i></span>
+                <input type="password" class="form-control" id="tomtomKeyInput" placeholder="Enter your TomTom API Key" value="${savedTomtom}">
+                <button class="btn btn-outline-secondary" type="button" id="toggleTomtomKey"><i class="bi bi-eye"></i></button>
+                <button class="btn btn-nd" type="button" id="saveTomtomKey"><i class="bi bi-check-lg"></i></button>
+              </div>
+              <div class="mt-1" style="font-size:.7rem;color:#94a3b8">
+                <a href="https://developer.tomtom.com/user/register" target="_blank" rel="noopener">Get your free API key from TomTom Developer Portal <i class="bi bi-box-arrow-up-right"></i></a>
+              </div>
+              ${savedTomtom ? '<div class="mt-2"><span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Connected</span></div>' : '<div class="mt-2"><span class="badge bg-secondary">Not configured</span></div>'}
+            </div>
+
             <!-- Google Maps -->
             <div class="p-3" style="background:rgba(66,153,225,.04);border-radius:12px;border:1px solid rgba(66,153,225,.08)">
               <div class="d-flex align-items-center gap-2 mb-2">
                 <i class="bi bi-geo-alt" style="font-size:1.2rem;color:#4299e1"></i>
                 <div>
-                  <div style="font-weight:700;font-size:.9rem">Google Maps API</div>
-                  <div style="font-size:.75rem;color:#94a3b8">Enable distance calculations, route mapping, and address autocomplete.</div>
+                  <div style="font-weight:700;font-size:.9rem">Google Maps API <span class="badge bg-warning-subtle text-warning ms-1" style="font-size:.65rem">Requires Billing</span></div>
+                  <div style="font-size:.75rem;color:#94a3b8">Distance calculations, route mapping, and address autocomplete.</div>
                 </div>
               </div>
               <div class="input-group">
@@ -281,7 +325,18 @@ const Settings = (() => {
 
     // ── Gemini AI key ────────────────────────────────────
     _bindApiKey('geminiKeyInput', 'toggleGeminiKey', 'saveGeminiKey', KEYS.GEMINI, 'Gemini API key');
+    _bindApiKey('tomtomKeyInput', 'toggleTomtomKey', 'saveTomtomKey', KEYS.TOMTOM, 'TomTom API key');
     _bindApiKey('gmapsKeyInput', 'toggleGmapsKey', 'saveGmapsKey', KEYS.GMAPS, 'Google Maps API key');
+
+    // ── Maps Provider selector ────────────────────────────
+    const providerSel = document.getElementById('mapsProviderSelect');
+    if (providerSel) {
+      providerSel.addEventListener('change', () => {
+        localStorage.setItem(KEYS.PROVIDER, providerSel.value);
+        App.showToast(`Maps provider set to: ${providerSel.value === 'auto' ? 'Auto' : providerSel.options[providerSel.selectedIndex].text}`, 'success');
+        render();
+      });
+    }
   }
 
   function _bindApiKey(inputId, toggleId, saveId, storageKey, label) {
