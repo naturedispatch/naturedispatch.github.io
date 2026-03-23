@@ -16,7 +16,7 @@
 const TomTomProvider = (() => {
 
   const STORAGE_KEY = 'nd_tomtom_key';
-  const SDK_VERSION = '6.25';
+  const SDK_VERSION = '6.25.0';
 
   function getApiKey() {
     return localStorage.getItem(STORAGE_KEY) || '';
