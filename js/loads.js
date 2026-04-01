@@ -79,9 +79,9 @@ async function loadLoadsPage() {
                 <th>Load #</th>
                 <th>Company</th>
                 <th>Broker</th>
-                <th>Driver</th>
-                <th>Truck</th>
+                <th>Stops</th>
                 <th>Revenue</th>
+                <th>Driver Pay</th>
                 <th>$/mi</th>
                 <th>ETA</th>
                 <th>Docs</th>
@@ -156,9 +156,9 @@ function loadRow(rec) {
     <td class="fw-semibold">${f['Load Number'] || '—'}</td>
     <td>${App.lookupName(_companies, f['Company'])}</td>
     <td>${App.lookupName(_brokers, f['Brokers/Shippers'])}</td>
-    <td>${App.lookupName(_drivers, f['Driver'])}</td>
-    <td>${App.lookupName(_trucks, f['Truck'])}</td>
+    <td><span class="badge ${(f['Load Stops']?.length || 0) > 0 ? 'bg-primary-subtle text-primary' : 'bg-secondary-subtle text-secondary'}">${f['Load Stops']?.length || 0} stop${(f['Load Stops']?.length || 0) !== 1 ? 's' : ''}</span></td>
     <td>${App.formatCurrency(f['Revenue'])}</td>
+    <td class="fw-semibold">${_cost > 0 ? App.formatCurrency(_cost) : '—'}</td>
     <td class="${_ppmCls} fw-semibold" style="font-size:.82rem">${_miles > 0 ? '$' + _ppm.toFixed(2) : '—'}</td>
     <td>${etaDisplay(f['ETA'])}</td>
     <td>${docStatus(f)}</td>
