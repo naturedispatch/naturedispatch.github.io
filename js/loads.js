@@ -664,6 +664,17 @@ async function openLoadDetail(id) {
     }
 
     document.getElementById('loadDetailTitle').textContent = `Load ${f['Load Number'] || ''} — Details`;
+
+    // Show "Driver Rate Con" button if driver is assigned
+    const genBtn = document.getElementById('detailGenRateConBtn');
+    if (genBtn) {
+      if (f['Driver']?.length) {
+        genBtn.style.display = '';
+        genBtn.setAttribute('data-load-id', id);
+      } else {
+        genBtn.style.display = 'none';
+      }
+    }
   } catch (err) {
     body.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
   }
@@ -1106,6 +1117,12 @@ async function confirmApproval() {
     if (broker) fields['Brokers/Shippers'] = [broker];
 
     await Airtable.update(CONFIG.TABLES.LOADS, _approveRecordId, fields);
+
+    // Auto-generate Driver Internal Rate Con PDF
+    try {
+      await generateDriverRateCon(_approveRecordId);
+    } catch (e) { console.warn('Driver Rate Con generation skipped:', e.message); }
+
     App.showToast('Load approved! Driver & truck assigned.', 'success');
     bootstrap.Modal.getInstance(document.getElementById('approveModal')).hide();
     loadLoadsPage();
@@ -1163,6 +1180,229 @@ async function rejectLoad(recordId) {
     loadLoadsPage();
   } catch (err) {
     App.showToast('Reject failed: ' + err.message, 'danger');
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// ██  DRIVER INTERNAL RATE CON — PDF GENERATION               ██
+// ══════════════════════════════════════════════════════════════
+
+/** Trigger from Load Detail modal button */
+async function generateDriverRateConFromDetail() {
+  const loadId = document.getElementById('detailGenRateConBtn')?.getAttribute('data-load-id');
+  if (!loadId) return;
+  await generateDriverRateCon(loadId);
+}
+
+/**
+ * Generate an Internal Rate Con PDF for the assigned driver.
+ * - Owner Operator → 88% of gross revenue
+ * - Other drivers  → flat rate (Cost field)
+ */
+async function generateDriverRateCon(loadId) {
+  if (typeof jspdf === 'undefined') {
+    App.showToast('PDF library not loaded. Please refresh and try again.', 'warning');
+    return;
+  }
+  const { jsPDF } = jspdf;
+
+  try {
+    // Fetch load + stops
+    const load = await Airtable.getOne(CONFIG.TABLES.LOADS, loadId);
+    const f = load.fields;
+
+    // Fetch driver record to determine type
+    const driverId = Array.isArray(f['Driver']) ? f['Driver'][0] : f['Driver'];
+    if (!driverId) {
+      App.showToast('No driver assigned to this load.', 'warning');
+      return;
+    }
+    const driver = await Airtable.getOne(CONFIG.TABLES.DRIVERS, driverId);
+    const driverName = driver.fields['Full Name'] || 'Unknown';
+    const driverType = driver.fields['Driver Type'] || '';
+    const isOwnerOp = driverType === 'Owner Operator';
+
+    // Calculate driver pay
+    const grossRevenue = parseFloat(f['Revenue']) || 0;
+    const flatRate = parseFloat(f['Cost']) || 0;
+    const driverPay = isOwnerOp ? grossRevenue * 0.88 : flatRate;
+
+    // Fetch stops
+    let stops = [];
+    try {
+      const stopIds = f['Load Stops'] || [];
+      stops = await _fetchStopsByIds(stopIds);
+      stops.sort((a, b) => (a.fields['Stop Sequence'] || 0) - (b.fields['Stop Sequence'] || 0));
+    } catch (_) {}
+
+    // Company name
+    const companyName = App.lookupName(_companies, f['Company'], 'Company Name');
+
+    // ── Build PDF ───────────────────────────────────────────
+    const doc = new jsPDF({ unit: 'pt', format: 'letter' });
+    const W = doc.internal.pageSize.getWidth();
+    const margin = 40;
+    let y = 40;
+
+    // Header bar
+    doc.setFillColor(27, 67, 50);
+    doc.rect(0, 0, W, 70, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text('DRIVER RATE CONFIRMATION', margin, 35);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text(companyName !== '—' ? companyName : 'Nature Dispatch', margin, 55);
+    doc.text('Internal Use Only', W - margin, 55, { align: 'right' });
+    y = 90;
+
+    // Load info section
+    doc.setTextColor(60, 60, 60);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text('LOAD INFORMATION', margin, y);
+    y += 5;
+    doc.setDrawColor(82, 183, 136);
+    doc.setLineWidth(1.5);
+    doc.line(margin, y, W - margin, y);
+    y += 18;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    const _row = (label, value, x, yPos) => {
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(100, 100, 100);
+      doc.text(label, x, yPos);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(30, 30, 30);
+      doc.text(String(value || '—'), x + 90, yPos);
+    };
+
+    _row('Load Number:', f['Load Number'] || '—', margin, y);
+    _row('Driver:', driverName, W / 2, y);
+    y += 16;
+    _row('Driver Type:', driverType || '—', margin, y);
+    _row('Truck:', App.lookupName(_trucks, f['Truck'], 'Truck Number'), W / 2, y);
+    y += 16;
+    _row('Pickup Date:', f['Pickup Date'] ? App.formatDate(f['Pickup Date']) : '—', margin, y);
+    _row('Delivery Date:', f['Delivery Date'] ? App.formatDate(f['Delivery Date']) : '—', W / 2, y);
+    y += 16;
+    _row('Miles:', f['Miles'] ? Number(f['Miles']).toLocaleString() + ' mi' : '—', margin, y);
+    y += 28;
+
+    // Stops section
+    if (stops.length > 0) {
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(60, 60, 60);
+      doc.text('STOPS', margin, y);
+      y += 5;
+      doc.setDrawColor(82, 183, 136);
+      doc.line(margin, y, W - margin, y);
+      y += 15;
+
+      doc.setFontSize(8);
+      // Table header
+      doc.setFillColor(245, 247, 250);
+      doc.rect(margin, y - 10, W - 2 * margin, 16, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(80, 80, 80);
+      doc.text('#', margin + 5, y);
+      doc.text('Type', margin + 25, y);
+      doc.text('Address', margin + 80, y);
+      doc.text('Date/Time', W - margin - 100, y);
+      y += 16;
+
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(30, 30, 30);
+      stops.forEach((s, i) => {
+        const sf = s.fields;
+        if (y > 700) { doc.addPage(); y = 50; }
+        doc.text(String(sf['Stop Sequence'] || i + 1), margin + 5, y);
+        doc.text(sf['Stop Type'] || 'Stop', margin + 25, y);
+        const addr = sf['Address'] || '—';
+        doc.text(addr.length > 55 ? addr.substring(0, 55) + '…' : addr, margin + 80, y);
+        doc.text(sf['Appointment Date/Time'] ? App.formatDate(sf['Appointment Date/Time']) : '—', W - margin - 100, y);
+        y += 14;
+      });
+      y += 12;
+    }
+
+    // Payment section
+    if (y > 620) { doc.addPage(); y = 50; }
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(60, 60, 60);
+    doc.text('DRIVER COMPENSATION', margin, y);
+    y += 5;
+    doc.setDrawColor(82, 183, 136);
+    doc.line(margin, y, W - margin, y);
+    y += 18;
+
+    // Payment box
+    const boxH = isOwnerOp ? 65 : 45;
+    doc.setFillColor(240, 253, 244);
+    doc.roundedRect(margin, y - 10, W - 2 * margin, boxH, 6, 6, 'F');
+    doc.setDrawColor(82, 183, 136);
+    doc.roundedRect(margin, y - 10, W - 2 * margin, boxH, 6, 6, 'S');
+
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(60, 60, 60);
+
+    if (isOwnerOp) {
+      doc.text('Pay Structure:  Owner Operator — 88% of Gross Revenue', margin + 15, y + 5);
+      y += 18;
+      _row('Gross Revenue:', '$' + grossRevenue.toFixed(2), margin + 15, y);
+      _row('Percentage:', '88%', W / 2, y);
+      y += 18;
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(27, 67, 50);
+      doc.text('DRIVER PAY:  $' + driverPay.toFixed(2), margin + 15, y);
+    } else {
+      doc.text('Pay Structure:  Flat Rate', margin + 15, y + 5);
+      y += 22;
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(27, 67, 50);
+      doc.text('DRIVER PAY:  $' + driverPay.toFixed(2), margin + 15, y);
+    }
+    y += 40;
+
+    // Notes
+    if (f['Notes']) {
+      if (y > 660) { doc.addPage(); y = 50; }
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(60, 60, 60);
+      doc.text('NOTES', margin, y);
+      y += 5;
+      doc.setDrawColor(82, 183, 136);
+      doc.line(margin, y, W - margin, y);
+      y += 15;
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      const lines = doc.splitTextToSize(f['Notes'], W - 2 * margin);
+      doc.text(lines, margin, y);
+    }
+
+    // Footer
+    const pageH = doc.internal.pageSize.getHeight();
+    doc.setFontSize(7);
+    doc.setTextColor(160, 160, 160);
+    doc.text('Generated on ' + new Date().toLocaleString() + ' — For internal driver use only', margin, pageH - 20);
+    doc.text((companyName !== '—' ? companyName : 'Nature Dispatch') + ' TMS', W - margin, pageH - 20, { align: 'right' });
+
+    // Save PDF
+    const fileName = 'DriverRateCon_' + (f['Load Number'] || loadId).replace(/[^a-zA-Z0-9-]/g, '_') + '_' + driverName.replace(/[^a-zA-Z0-9]/g, '_') + '.pdf';
+    doc.save(fileName);
+    App.showToast('Driver Rate Con PDF downloaded: ' + fileName, 'success');
+
+  } catch (err) {
+    console.error('Driver Rate Con PDF failed:', err);
+    App.showToast('Failed to generate PDF: ' + err.message, 'danger');
   }
 }
 
