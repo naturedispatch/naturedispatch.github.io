@@ -15,6 +15,7 @@ const DOC_FIELDS = [
   { inputId: 'fileRateCon', contentId: 'docRateCon', boxId: 'boxRateCon', field: 'Rate Con PDF', label: 'Rate Con' },
   { inputId: 'fileBOL',     contentId: 'docBOL',     boxId: 'boxBOL',     field: 'BOL PDF',     label: 'BOL' },
   { inputId: 'fileInvoice', contentId: 'docInvoice', boxId: 'boxInvoice', field: 'Invoice PDF', label: 'Invoice' },
+  { inputId: 'fileDriverRC', contentId: 'docDriverRC', boxId: 'boxDriverRC', field: 'Driver Rate Con PDF', label: 'Driver RC' },
 ];
 
 async function loadLoadsPage() {
@@ -108,13 +109,14 @@ async function loadLoadsPage() {
 
 // ── Document status helper ──────────────────────────────────
 function docStatus(fields) {
-  const hasRateCon = fields['Rate Con PDF'] && fields['Rate Con PDF'].length > 0;
-  const hasBOL     = fields['BOL PDF'] && fields['BOL PDF'].length > 0;
-  const hasInvoice = fields['Invoice PDF'] && fields['Invoice PDF'].length > 0;
-  const count = (hasRateCon ? 1 : 0) + (hasBOL ? 1 : 0) + (hasInvoice ? 1 : 0);
-  if (count === 3) return '<span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>3/3</span>';
-  if (count > 0)   return `<span class="badge bg-warning text-dark"><i class="bi bi-exclamation-circle me-1"></i>${count}/3</span>`;
-  return '<span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>0/3</span>';
+  const hasRateCon  = fields['Rate Con PDF'] && fields['Rate Con PDF'].length > 0;
+  const hasBOL      = fields['BOL PDF'] && fields['BOL PDF'].length > 0;
+  const hasInvoice  = fields['Invoice PDF'] && fields['Invoice PDF'].length > 0;
+  const hasDriverRC = fields['Driver Rate Con PDF'] && fields['Driver Rate Con PDF'].length > 0;
+  const count = (hasRateCon ? 1 : 0) + (hasBOL ? 1 : 0) + (hasInvoice ? 1 : 0) + (hasDriverRC ? 1 : 0);
+  if (count === 4) return '<span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>4/4</span>';
+  if (count > 0)   return `<span class="badge bg-warning text-dark"><i class="bi bi-exclamation-circle me-1"></i>${count}/4</span>`;
+  return '<span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>0/4</span>';
 }
 
 // ── Invoice status badge ────────────────────────────────────
@@ -644,6 +646,7 @@ async function openLoadDetail(id) {
             ${_docLink(f['Rate Con PDF'], 'Rate Con')}
             ${_docLink(f['BOL PDF'], 'BOL')}
             ${_docLink(f['Invoice PDF'], 'Invoice')}
+            ${_docLink(f['Driver Rate Con PDF'], 'Driver RC')}
           </div>
 
           <h6 class="text-muted text-uppercase mb-3" style="font-size:.72rem;letter-spacing:1px">Load Stops (${stops.length})</h6>
@@ -1450,10 +1453,20 @@ async function generateDriverRateCon(loadId) {
     doc.text('Generated on ' + new Date().toLocaleString() + ' — For internal driver use only', margin, pageH - 20);
     doc.text((companyName !== '—' ? companyName : 'Nature Dispatch') + ' TMS', W - margin, pageH - 20, { align: 'right' });
 
-    // Save PDF
+    // Save PDF locally
     const fileName = 'DriverRateCon_' + (f['Load Number'] || loadId).replace(/[^a-zA-Z0-9-]/g, '_') + '_' + driverName.replace(/[^a-zA-Z0-9]/g, '_') + '.pdf';
     doc.save(fileName);
-    App.showToast('Driver Rate Con PDF downloaded: ' + fileName, 'success');
+
+    // Upload PDF to Airtable as attachment
+    try {
+      const pdfBlob = doc.output('blob');
+      const pdfFile = new File([pdfBlob], fileName, { type: 'application/pdf' });
+      await Airtable.uploadAttachment(CONFIG.TABLES.LOADS, loadId, 'Driver Rate Con PDF', pdfFile);
+      App.showToast('Driver Rate Con PDF saved to load & downloaded!', 'success');
+    } catch (uploadErr) {
+      console.warn('Driver Rate Con upload to Airtable failed:', uploadErr);
+      App.showToast('PDF downloaded but upload to Airtable failed: ' + uploadErr.message, 'warning');
+    }
 
   } catch (err) {
     console.error('Driver Rate Con PDF failed:', err);
