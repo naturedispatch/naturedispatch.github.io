@@ -1274,8 +1274,12 @@ async function generateDriverRateCon(loadId) {
       '| Driver Type:', driverType, '| isOwnerOp:', isOwnerOp,
       '| driverPay:', driverPay);
 
-    if (driverPay === 0) {
-      App.showToast('Warning: Driver pay is $0. Check Revenue and Cost fields on the load.', 'warning');
+    if (driverPay <= 0) {
+      const reason = isOwnerOp
+        ? 'Revenue is $0 — edit the load and enter the Revenue amount.'
+        : 'Driver Pay (Cost) is not set — edit the load and enter the Driver Pay / Cost amount.';
+      App.showToast('Cannot generate PDF: ' + reason, 'warning');
+      return;
     }
 
     // Fetch stops
