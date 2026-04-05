@@ -222,6 +222,7 @@ async function openEditLoad(recordId) {
     document.getElementById('loadNumber').value       = f['Load Number'] || '';
     document.getElementById('loadStatus').value       = f['Status'] || 'New';
     document.getElementById('loadRevenue').value      = f['Revenue'] || '';
+    document.getElementById('loadCost').value          = f['Cost'] || '';
     document.getElementById('loadMiles').value        = f['Miles'] || '';
     document.getElementById('loadNotes').value        = f['Notes'] || '';
     document.getElementById('loadInvoiceStatus').value = f['Invoice Status'] || '';
@@ -282,6 +283,7 @@ async function saveLoad() {
     'Load Number':    document.getElementById('loadNumber').value.trim(),
     'Status':         document.getElementById('loadStatus').value,
     'Revenue':        parseFloat(document.getElementById('loadRevenue').value) || 0,
+    'Cost':           parseFloat(document.getElementById('loadCost').value) || 0,
     'Miles':          parseInt(document.getElementById('loadMiles').value) || 0,
     'Notes':          document.getElementById('loadNotes').value.trim(),
     'Invoice Status': document.getElementById('loadInvoiceStatus').value || null,
@@ -1226,6 +1228,15 @@ async function generateDriverRateCon(loadId) {
     const grossRevenue = parseFloat(f['Revenue']) || 0;
     const flatRate = parseFloat(f['Cost']) || 0;
     const driverPay = isOwnerOp ? grossRevenue * 0.88 : flatRate;
+
+    console.log('[Driver Rate Con] Revenue:', f['Revenue'], '→', grossRevenue,
+      '| Cost:', f['Cost'], '→', flatRate,
+      '| Driver Type:', driverType, '| isOwnerOp:', isOwnerOp,
+      '| driverPay:', driverPay);
+
+    if (driverPay === 0) {
+      App.showToast('Warning: Driver pay is $0. Check Revenue and Cost fields on the load.', 'warning');
+    }
 
     // Fetch stops
     let stops = [];
