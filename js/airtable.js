@@ -119,34 +119,28 @@ const Airtable = (() => {
    * @param {File}   file      – File object from <input type="file">
    */
   async function uploadAttachment(tableName, recordId, fieldName, file) {
-    // Step 1 — Upload to temporary hosting to get a public URL
-    let publicUrl;
-    try {
-      const fd = new FormData();
-      fd.append('file', file);
-      const hostRes = await fetch('https://tmpfiles.org/api/v1/upload', {
-        method: 'POST',
-        body: fd,
-      });
-      const hostData = await hostRes.json();
-      if (hostData.status !== 'success' || !hostData.data?.url) {
-        throw new Error(hostData.message || 'Unexpected response');
-      }
-      // Convert to direct-download link
-      publicUrl = hostData.data.url.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
-    } catch (hostErr) {
-      throw new Error('File hosting failed: ' + hostErr.message);
-    }
+    // Use Airtable's direct Content Upload API (base64, up to 5 MB)
+    const base64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = () => reject(new Error('File read failed'));
+      reader.readAsDataURL(file);
+    });
 
-    // Step 2 — Attach the hosted URL to the Airtable record
-    const res = await fetch(_url(tableName, recordId), {
-      method: 'PATCH',
-      headers: _headers(),
+    const uploadUrl = `https://content.airtable.com/v0/${CONFIG.AIRTABLE_BASE_ID}/${recordId}/${encodeURIComponent(fieldName)}/uploadAttachment`;
+    const res = await fetch(uploadUrl, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${CONFIG.AIRTABLE_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify({
-        fields: { [fieldName]: [{ url: publicUrl, filename: file.name }] }
+        contentType: file.type || 'application/pdf',
+        file: base64,
+        filename: file.name,
       }),
     });
-    if (!res.ok) await _handleError(res, 'Attachment failed');
+    if (!res.ok) await _handleError(res, 'Attachment upload failed');
     return res.json();
   }
 
