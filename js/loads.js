@@ -1076,6 +1076,21 @@ async function approveLoad(recordId) {
     _fillApprovalSelect('approveTruck', _trucks, 'Truck Number', f['Truck']);
     _fillApprovalSelect('approveBroker', _brokers, 'Broker Name', f['Brokers/Shippers']);
 
+    // Store revenue for pay calculation
+    document.getElementById('approveModal').dataset.revenue = f['Revenue'] || 0;
+    document.getElementById('approveDriverPay').value = f['Cost'] || '';
+    document.getElementById('approvePayInfo').textContent = 'Select a driver to see pay structure';
+
+    // Auto-calc driver pay when driver changes
+    document.getElementById('approveDriver').onchange = function() {
+      _updateApprovalPayCalc(this.value);
+    };
+    // Trigger calc if driver already pre-selected
+    if (f['Driver']) {
+      const preselected = Array.isArray(f['Driver']) ? f['Driver'][0] : f['Driver'];
+      _updateApprovalPayCalc(preselected);
+    }
+
     // Show load summary
     document.getElementById('approveSummary').innerHTML = `
       <div class="row g-2">
@@ -1087,6 +1102,28 @@ async function approveLoad(recordId) {
     new bootstrap.Modal(document.getElementById('approveModal')).show();
   } catch (err) {
     App.showToast('Could not load record: ' + err.message, 'danger');
+  }
+}
+
+function _updateApprovalPayCalc(driverId) {
+  const infoEl = document.getElementById('approvePayInfo');
+  const payInput = document.getElementById('approveDriverPay');
+  if (!driverId) {
+    infoEl.textContent = 'Select a driver to see pay structure';
+    return;
+  }
+  const driverRec = _drivers.find(d => d.id === driverId);
+  if (!driverRec) return;
+  const driverType = driverRec.fields['Driver Type'] || '';
+  const revenue = parseFloat(document.getElementById('approveModal').dataset.revenue) || 0;
+
+  if (driverType === 'Owner Operator') {
+    const calc = (revenue * 0.88).toFixed(2);
+    infoEl.innerHTML = `<i class="bi bi-info-circle me-1"></i><strong>Owner Operator</strong> — 88% of $${revenue.toFixed(2)} = <strong class="text-success">$${calc}</strong>`;
+    payInput.value = calc;
+  } else {
+    infoEl.innerHTML = `<i class="bi bi-info-circle me-1"></i><strong>${driverType || 'Driver'}</strong> — Enter flat rate below`;
+    if (!payInput.value) payInput.value = '';
   }
 }
 
@@ -1106,15 +1143,18 @@ async function confirmApproval() {
   const driver = document.getElementById('approveDriver').value;
   const truck  = document.getElementById('approveTruck').value;
   const broker = document.getElementById('approveBroker').value;
+  const driverPay = parseFloat(document.getElementById('approveDriverPay').value) || 0;
 
   if (!driver) { App.showToast('Please select a driver.', 'warning'); return; }
   if (!truck)  { App.showToast('Please select a truck.', 'warning'); return; }
+  if (driverPay <= 0) { App.showToast('Please enter the driver pay amount.', 'warning'); return; }
 
   await App.withLoading(btn, async () => {
     const fields = {
       'Status': 'New',
       'Driver': [driver],
       'Truck':  [truck],
+      'Cost':   driverPay,
     };
     if (broker) fields['Brokers/Shippers'] = [broker];
 
